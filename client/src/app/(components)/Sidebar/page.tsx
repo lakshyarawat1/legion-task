@@ -35,7 +35,7 @@ const Sidebar = () => {
             <h3 className="text-md font-bold tracking-wide dark:text-gray-200 hidden md:flex">
               My Team
             </h3>
-            <div className="mt-1 flex items-start gap-2 hidden md:flex">
+            <div className="mt-1 items-start gap-2 hidden md:flex">
               <LockIcon className="mt-[0.1rem] h-3 w-3 text-gray-500 dark:text-gray-400" />
               <p className="text-xs text-gray-500">Private</p>
             </div>
