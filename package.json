@@ -1,0 +1,10 @@
+{
+  "name": "legion-task",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"pnpm --filter client dev\" \"pnpm --filter server dev\""
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

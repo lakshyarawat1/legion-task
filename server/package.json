@@ -6,7 +6,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon --ext ts --exec node --loader ts-node/esm src/index.ts",
+    "dev": "nodemon --ext ts --exec ts-node src/index.ts",
     "seed": "ts-node prisma/seed.ts"
   },
   "keywords": [],

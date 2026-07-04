@@ -1,0 +1,200 @@
+# LegionTask — AI Git Workflow Instructions
+
+> This file defines how AI agents must structure and push commits to GitHub for this project.
+> Follow these rules precisely. Do NOT deviate from the format.
+
+---
+
+## 1. Core Rules
+
+- **Never force push** to `main` or `dev` branches.
+- **Always commit on a feature branch**, never directly on `main`.
+- **One logical change per commit** — do not bundle unrelated functionality changes.
+- **Categorize by functionality, not by files.** A single commit may touch multiple files if they all serve one functional purpose.
+- **Always pull before pushing** to avoid merge conflicts.
+
+---
+
+## 2. Branch Naming
+
+```
+<category>/<short-description>
+```
+
+| Category    | When to use                                      | Example                          |
+|-------------|--------------------------------------------------|----------------------------------|
+| `feat`      | Adding new functionality                         | `feat/kanban-board`              |
+| `fix`       | Fixing a bug in existing functionality           | `fix/task-status-update`         |
+| `update`    | Improving or refactoring existing functionality  | `update/sidebar-navigation`      |
+| `remove`    | Removing a feature or deprecated code            | `remove/mui-dependency`          |
+| `chore`     | Config, tooling, CI — no functional change       | `chore/eslint-setup`             |
+| `docs`      | Documentation only                               | `docs/api-reference`             |
+
+---
+
+## 3. Commit Message Format
+
+```
+<type>(<scope>): <short summary>
+
+[optional body — explain WHY, not WHAT]
+```
+
+### Type Definitions
+
+| Type       | Meaning                                                                 |
+|------------|-------------------------------------------------------------------------|
+| `added`    | A **new** feature or functionality was introduced                       |
+| `updated`  | An **existing** feature was changed, improved, or refactored            |
+| `deleted`  | A feature, endpoint, or behaviour was **removed**                       |
+| `fixed`    | A **bug** was corrected without adding or removing functionality        |
+| `chore`    | Tooling, deps, config — no user-facing change                           |
+
+> The `type` must always be one of the five values above — no aliases, no uppercase.
+
+### Scope
+
+The scope is the feature area or module being changed. Use short, consistent names:
+
+| Scope         | Covers                                            |
+|---------------|---------------------------------------------------|
+| `auth`        | Login, logout, AWS Cognito                        |
+| `tasks`       | Task CRUD, status, priority, assignment           |
+| `projects`    | Project creation, listing, management             |
+| `kanban`      | Drag-and-drop board view                          |
+| `timeline`    | Gantt chart view                                  |
+| `sidebar`     | Left sidebar navigation                           |
+| `navbar`      | Top navigation bar                                |
+| `theme`       | Dark/light mode, design tokens, color system      |
+| `users`       | User listing, profile, team assignment            |
+| `teams`       | Team management                                   |
+| `search`      | Global search feature                             |
+| `settings`    | Settings page                                     |
+| `db`          | Prisma schema, migrations, seeds                  |
+| `api`         | Express routes, controllers, middleware            |
+| `ui`          | Shared UI components (buttons, modals, etc.)      |
+| `store`       | Redux store, slices, RTK Query                    |
+| `config`      | next.config, tailwind.config, postcss, tsconfig   |
+| `deps`        | Package installation or removal                   |
+
+---
+
+## 4. Examples
+
+### Adding new functionality
+```
+added(kanban): implement drag-and-drop task board
+
+Uses react-dnd to allow tasks to be dragged between status columns.
+Columns: To Do, Work In Progress, Under Review, Completed.
+```
+
+### Updating existing functionality
+```
+updated(sidebar): apply iOS glassmorphism styling
+
+Replaced flat sidebar with backdrop-blur glass card.
+Active links now use a filled pill indicator matching iPadOS design.
+```
+
+### Deleting functionality
+```
+deleted(deps): remove MUI and replace with shadcn/ui
+
+MUI added 200kB+ to the bundle. All MUI components have been
+replaced with shadcn/ui primitives built on @base-ui/react.
+```
+
+### Bug fix
+```
+fixed(api): destructure projectId from req.query correctly
+
+req.query returns an object; previously the whole object was
+being passed to Prisma causing all task queries to return empty.
+```
+
+### Chore
+```
+chore(config): move globals.css from app/ to src/ root
+
+Tailwind v4 scans from the CSS file location outward.
+Moving to src/ ensures all components and pages are scanned.
+```
+
+---
+
+## 5. Step-by-Step Push Workflow
+
+```bash
+# 1. Start from an up-to-date base
+git checkout dev
+git pull origin dev
+
+# 2. Create your feature branch
+git checkout -b feat/your-feature-name
+
+# 3. Make your changes, then stage only what belongs to this commit
+git add <specific-files>         # preferred over `git add .`
+
+# 4. Commit with the correct format
+git commit -m "added(tasks): implement task detail modal"
+
+# 5. Push the branch to remote
+git push origin feat/your-feature-name
+
+# 6. Open a Pull Request into `dev` (never directly into `main`)
+#    Title must match the commit message format.
+#    PR description must list each functionality change using the categories below.
+```
+
+---
+
+## 6. Pull Request Description Template
+
+When opening a PR, use this exact format in the description:
+
+```markdown
+## Summary
+<!-- One sentence describing the overall change -->
+
+## Changes
+
+### Added
+- <!-- New functionality introduced. One bullet per feature. -->
+
+### Updated
+- <!-- Existing functionality that was modified or improved. -->
+
+### Deleted
+- <!-- Functionality or code that was removed. -->
+
+## Testing
+- [ ] Dev server starts without errors
+- [ ] No TypeScript errors (`pnpm run build` passes)
+- [ ] Tested in both light and dark mode
+- [ ] Navigation between pages works correctly
+
+## Screenshots
+<!-- Attach before/after screenshots for any UI changes -->
+```
+
+---
+
+## 7. What NOT to Do
+
+| Don't                                            | Do instead                                      |
+|-------------------------------------------------|------------------------------------------------|
+| `git commit -m "fix stuff"`                     | `fixed(tasks): correct status update endpoint` |
+| `git commit -m "WIP"`                           | Never commit WIP — stash it                    |
+| Push directly to `main`                          | Always go through a PR from `dev`              |
+| Bundle multiple features in one commit           | One commit per logical functionality change    |
+| Use `git add .` without reviewing changes        | Review with `git diff --staged` first          |
+| Write "updated files X, Y, Z" in commit body    | Write *why* the change was made                |
+
+---
+
+## 8. Merge Strategy
+
+- Squash and merge feature branches into `dev`.
+- Merge `dev` into `main` only for releases, using a regular merge commit.
+- Delete the feature branch after the PR is merged.
