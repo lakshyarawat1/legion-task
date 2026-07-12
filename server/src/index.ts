@@ -20,31 +20,53 @@ const app = express();
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
-app.use(cors());
+
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(",")
+  : ["http://localhost:3000", "http://localhost:3001"];
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps or curl/Postman requests)
+      if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+  })
+);
 app.use(helmet());
 app.use(helmet.crossOriginResourcePolicy({ policy: "cross-origin" }));
 app.use(morgan("common"));
+
+// Global logging middleware
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  next();
+});
+
 app.use(clerkMiddleware({
   publishableKey: process.env.CLERK_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
   secretKey: process.env.CLERK_SECRET_KEY,
 }));
 
-import { requireAuthMiddleware, requireLocalUser } from "./middleware/authMiddleware";
+import { requireAuthMiddleware, requireLocalUser, requireOrg } from "./middleware/authMiddleware";
 
 app.get("/", (req, res) => {
   res.send("Hello World!");
 });
 
-
-
-app.use("/projects", requireAuthMiddleware, requireLocalUser, projectRoutes);
-app.use("/tasks", requireAuthMiddleware, requireLocalUser, taskRoutes);
-app.use("/users", requireAuthMiddleware, requireLocalUser, userRoutes);
-app.use("/teams", requireAuthMiddleware, requireLocalUser, teamRoutes);
-app.use("/search", requireAuthMiddleware, requireLocalUser, searchRoutes);
-app.use("/comments", requireAuthMiddleware, requireLocalUser, commentRoutes);
-app.use("/attachments", requireAuthMiddleware, requireLocalUser, attachmentRoutes);
 app.use("/orgs", requireAuthMiddleware, requireLocalUser, orgRoutes);
+app.use("/projects", requireAuthMiddleware, requireLocalUser, requireOrg, projectRoutes);
+app.use("/tasks", requireAuthMiddleware, requireLocalUser, requireOrg, taskRoutes);
+app.use("/users", requireAuthMiddleware, requireLocalUser, requireOrg, userRoutes);
+app.use("/teams", requireAuthMiddleware, requireLocalUser, requireOrg, teamRoutes);
+app.use("/search", requireAuthMiddleware, requireLocalUser, requireOrg, searchRoutes);
+app.use("/comments", requireAuthMiddleware, requireLocalUser, requireOrg, commentRoutes);
+app.use("/attachments", requireAuthMiddleware, requireLocalUser, requireOrg, attachmentRoutes);
 
 const PORT = process.env.PORT || 3000;
 
