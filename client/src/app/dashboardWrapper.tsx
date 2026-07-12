@@ -5,9 +5,12 @@ import Navbar from "./(components)/Navbar/Navbar";
 import Sidebar from "./(components)/Sidebar/Sidebar";
 import { useSelector } from "react-redux";
 import { RootState } from "@/state/store";
+import { Suspense } from "react";
+import TaskModalProvider from "@/app/(components)/TaskModalProvider";
 import { useUser } from "@clerk/nextjs";
 import { useGetMeQuery } from "@/state/api";
 import { useRouter, usePathname } from "next/navigation";
+import PageLoader from "@/app/(components)/PageLoader/PageLoader";
 
 const DashboardWrapper = ({ children }: { children: React.ReactNode }) => {
   const isSidebarCollapsed = useSelector((state: RootState) => state.global.isSidebarCollapsed);
@@ -27,7 +30,7 @@ const DashboardWrapper = ({ children }: { children: React.ReactNode }) => {
   }, [isLoaded, user, localUser, pathname, router]);
 
   if (!isLoaded || isLocalUserLoading) {
-    return <div className="flex min-h-screen items-center justify-center">Loading...</div>;
+    return <PageLoader message="Loading workspace..." />;
   }
 
   // If user has no orgId and they are not on the onboarding page, we're currently redirecting.
@@ -46,6 +49,9 @@ const DashboardWrapper = ({ children }: { children: React.ReactNode }) => {
       >
         <Navbar />
         {children}
+        <Suspense fallback={null}>
+          <TaskModalProvider />
+        </Suspense>
       </main>
     </div>
   );

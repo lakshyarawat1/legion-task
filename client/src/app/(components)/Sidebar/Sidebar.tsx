@@ -48,35 +48,22 @@ const Sidebar = ({ isSidebarCollapsed }: SidebarProps) => {
       {/* Logo */}
       <div className="flex h-[100%] flex-col justify-start">
         <div className={cn("z-50 flex min-h-[56px] items-center px-6 pt-3", isSidebarCollapsed ? "justify-center px-0" : "justify-between")}>
-          <div className={cn("text-xl font-bold text-foreground", isSidebarCollapsed ? "hidden" : "flex")}>
-            LEGION-TASK
+          <div className={cn("flex items-center gap-3", isSidebarCollapsed ? "hidden" : "flex")}>
+            <Image src="/app-logo-light.png" alt="LegionTask Logo Light" width={32} height={32} className="rounded-lg shadow-md dark:hidden" />
+            <Image src="/app-logo-dark.png" alt="LegionTask Logo Dark" width={32} height={32} className="rounded-lg shadow-md hidden dark:block" />
+            <div className="text-xl font-bold text-foreground tracking-tight">
+              LegionTask
+            </div>
           </div>
           {isSidebarCollapsed && (
-            <div className="text-xl font-bold text-foreground bg-primary text-primary-foreground h-8 w-8 rounded-lg flex items-center justify-center">
-              LT
-            </div>
+            <>
+              <Image src="/app-logo-light.png" alt="LegionTask Logo Light" width={32} height={32} className="rounded-lg shadow-md dark:hidden" />
+              <Image src="/app-logo-dark.png" alt="LegionTask Logo Dark" width={32} height={32} className="rounded-lg shadow-md hidden dark:block" />
+            </>
           )}
         </div>
         
-        <div className={cn("flex items-center gap-5 border-y-[0.5px] border-border py-4 mt-2", isSidebarCollapsed ? "px-2 justify-center" : "px-8")}>
-          <Image
-            src="/logo.png"
-            alt="logo"
-            width={isSidebarCollapsed ? 30 : 40}
-            height={isSidebarCollapsed ? 30 : 40}
-            className="rounded-full shadow-sm flex-shrink-0"
-          />
 
-          <div className={cn(isSidebarCollapsed ? "hidden" : "flex flex-col")}>
-            <h3 className="text-md font-bold tracking-wide text-foreground">
-              My Team
-            </h3>
-            <div className="mt-1 flex items-start gap-2">
-              <LockIcon className="mt-[0.1rem] h-3 w-3 text-muted-foreground" />
-              <p className="text-xs text-muted-foreground">Private</p>
-            </div>
-          </div>
-        </div>
 
         <nav className="z-10 w-full pt-4 flex flex-col gap-1">
           <SidebarLink icon={Home} label="Home" href="/dashboard" isCollapsed={isSidebarCollapsed} />

@@ -20,7 +20,7 @@ export default function OnboardingPage() {
     setErrorMsg("");
     try {
       await createOrg({ name: orgName }).unwrap();
-      router.push("/");
+      router.push("/dashboard");
     } catch (err: any) {
       setErrorMsg(err?.data?.error || "Failed to create organization");
     }
@@ -31,7 +31,7 @@ export default function OnboardingPage() {
     setErrorMsg("");
     try {
       await joinOrg({ inviteCode }).unwrap();
-      router.push("/");
+      router.push("/dashboard");
     } catch (err: any) {
       setErrorMsg(err?.data?.error || "Failed to join organization");
     }
