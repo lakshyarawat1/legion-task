@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useCreateTaskMutation, useGetUsersQuery } from "@/state/api";
+import { formatUsername } from "@/lib/utils";
 
 const statusOptions = ["To Do", "Work In Progress", "Under Review", "Completed"];
 const priorityOptions = ["Urgent", "High", "Medium", "Low", "Backlog"];
@@ -20,7 +21,7 @@ const priorityOptions = ["Urgent", "High", "Medium", "Low", "Backlog"];
 interface ModalNewTaskProps {
   open: boolean;
   onClose: () => void;
-  projectId: number;
+  projectId: string;
 }
 
 const ModalNewTask = ({ open, onClose, projectId }: ModalNewTaskProps) => {
@@ -64,8 +65,7 @@ const ModalNewTask = ({ open, onClose, projectId }: ModalNewTaskProps) => {
         dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
         points: points ? Number(points) : undefined,
         projectId,
-        authorUserId: 1, // Default author since no auth yet
-        assignedUserId: assignedUserId ? Number(assignedUserId) : undefined,
+        assignedUserId: assignedUserId ? assignedUserId : undefined,
       }).unwrap();
       resetForm();
       onClose();
@@ -182,7 +182,7 @@ const ModalNewTask = ({ open, onClose, projectId }: ModalNewTaskProps) => {
                 <option value="">Unassigned</option>
                 {users?.map((user) => (
                   <option key={user.userId} value={user.userId}>
-                    {user.username}
+                    {formatUsername(user.username)}
                   </option>
                 ))}
               </select>
