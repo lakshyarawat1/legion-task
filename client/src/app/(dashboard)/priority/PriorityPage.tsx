@@ -7,12 +7,15 @@ import Link from "next/link";
 import { StatusBadge, PriorityBadge } from "@/app/(components)/Badges/Badges";
 import EmptyState from "@/app/(components)/EmptyState/EmptyState";
 import { format } from "date-fns";
+import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 
 interface PriorityPageProps {
   priority: string;
 }
 
 export default function PriorityPage({ priority }: PriorityPageProps) {
+  const router = useRouter();
   const { data: tasks, isLoading, isError } = useGetTasksQuery({ priority });
 
   const getPriorityConfig = () => {
@@ -84,11 +87,22 @@ export default function PriorityPage({ priority }: PriorityPageProps) {
               </thead>
               <tbody className="divide-y divide-border">
                 {tasks.map((task) => (
-                  <tr key={task.id} className="transition-colors hover:bg-secondary/50 group">
+                  <motion.tr 
+                    layoutId={`task-card-${task.id}`}
+                    key={task.id} 
+                    className="transition-colors hover:bg-secondary/50 group"
+                  >
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <Link href={`/projects/${task.projectId}`} className="font-semibold text-foreground group-hover:text-primary transition-colors">
+                      <div 
+                        onClick={() => {
+                          const url = new URL(window.location.href);
+                          url.searchParams.set("taskId", task.id.toString());
+                          router.push(url.pathname + url.search, { scroll: false });
+                        }}
+                        className="font-semibold text-foreground group-hover:text-primary transition-colors cursor-pointer"
+                      >
                         {task.title}
-                      </Link>
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-muted-foreground">
                       {task.project?.name || "Unknown"}
@@ -102,7 +116,7 @@ export default function PriorityPage({ priority }: PriorityPageProps) {
                     <td className="px-6 py-4 whitespace-nowrap text-muted-foreground">
                       {task.dueDate ? format(new Date(task.dueDate), "MMM d, yyyy") : "No date"}
                     </td>
-                  </tr>
+                  </motion.tr>
                 ))}
               </tbody>
             </table>

@@ -7,8 +7,11 @@ import { useSearchQuery } from "@/state/api";
 import EmptyState from "@/app/(components)/EmptyState/EmptyState";
 import { StatusBadge, PriorityBadge } from "@/app/(components)/Badges/Badges";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 
 export default function SearchPage() {
+  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
@@ -81,10 +84,15 @@ export default function SearchPage() {
               </div>
               <div className="flex flex-col gap-3">
                 {searchResults.tasks.map((task) => (
-                  <Link
+                  <motion.div
+                    layoutId={`task-card-${task.id}`}
                     key={task.id}
-                    href={`/projects/${task.projectId}`}
-                    className="flex flex-col gap-2 rounded-xl border border-border bg-card p-4 shadow-sm transition-all hover:bg-secondary/50 hover:shadow-md sm:flex-row sm:items-center sm:justify-between"
+                    onClick={() => {
+                      const url = new URL(window.location.href);
+                      url.searchParams.set("taskId", task.id.toString());
+                      router.push(url.pathname + url.search, { scroll: false });
+                    }}
+                    className="flex flex-col gap-2 rounded-xl border border-border bg-card p-4 shadow-sm transition-all hover:bg-secondary/50 hover:shadow-md sm:flex-row sm:items-center sm:justify-between cursor-pointer"
                   >
                     <div>
                       <h3 className="font-semibold text-foreground">{task.title}</h3>
@@ -96,7 +104,7 @@ export default function SearchPage() {
                       <PriorityBadge priority={task.priority} />
                       <StatusBadge status={task.status} />
                     </div>
-                  </Link>
+                  </motion.div>
                 ))}
               </div>
             </section>

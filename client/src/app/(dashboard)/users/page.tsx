@@ -5,32 +5,7 @@ import { useGetUsersQuery } from "@/state/api";
 import { Users as UsersIcon, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import EmptyState from "@/app/(components)/EmptyState/EmptyState";
-import { cn } from "@/lib/utils";
-
-const AVATAR_COLORS = [
-  "bg-red-100 text-red-700",
-  "bg-orange-100 text-orange-700",
-  "bg-amber-100 text-amber-700",
-  "bg-green-100 text-green-700",
-  "bg-emerald-100 text-emerald-700",
-  "bg-teal-100 text-teal-700",
-  "bg-cyan-100 text-cyan-700",
-  "bg-blue-100 text-blue-700",
-  "bg-indigo-100 text-indigo-700",
-  "bg-violet-100 text-violet-700",
-  "bg-purple-100 text-purple-700",
-  "bg-fuchsia-100 text-fuchsia-700",
-  "bg-pink-100 text-pink-700",
-  "bg-rose-100 text-rose-700",
-];
-
-const getAvatarColor = (name: string) => {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
-};
+import { cn, formatUsername, getAvatarColor } from "@/lib/utils";
 
 export default function UsersPage() {
   const { data: users, isLoading } = useGetUsersQuery();
@@ -97,13 +72,18 @@ export default function UsersPage() {
               <tbody className="divide-y divide-border">
                 {filteredUsers?.map((user) => (
                   <tr key={user.userId} className="transition-colors hover:bg-secondary/50">
-                    <td className="px-6 py-3 whitespace-nowrap">
-                      <div className={cn("flex h-10 w-10 items-center justify-center rounded-full font-bold shadow-sm", getAvatarColor(user.username))}>
-                        {user.username.charAt(0).toUpperCase()}
+                    <td className="px-6 py-4 w-16">
+                      <div
+                        className={cn(
+                          "flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold shadow-sm",
+                          getAvatarColor(user.username)
+                        )}
+                      >
+                        {formatUsername(user.username).charAt(0).toUpperCase()}
                       </div>
                     </td>
-                    <td className="px-6 py-3 whitespace-nowrap font-medium text-foreground">
-                      {user.username}
+                    <td className="px-6 py-4 font-medium text-foreground whitespace-nowrap">
+                      {formatUsername(user.username)}
                     </td>
                     <td className="px-6 py-3 whitespace-nowrap text-muted-foreground">
                       {user.team?.teamName ? (
