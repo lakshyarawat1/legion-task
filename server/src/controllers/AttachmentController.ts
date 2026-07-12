@@ -5,12 +5,25 @@ export const getAttachments = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { taskId } = req.query;
+  const { taskId } = req.query as { [key: string]: string };
+  const currentUser = (req as any).user;
 
   try {
+    const task = await prisma.task.findFirst({
+      where: {
+        id: taskId,
+        project: { orgId: currentUser.orgId },
+      },
+    });
+
+    if (!task) {
+      res.status(404).json({ error: "Task not found in your organization." });
+      return;
+    }
+
     const attachments = await prisma.attachment.findMany({
       where: {
-        taskId: Number(taskId),
+        taskId: taskId,
       },
       include: {
         uploadedBy: true,
@@ -27,15 +40,27 @@ export const createAttachment = async (
   res: Response
 ): Promise<void> => {
   const { fileURL, fileName, taskId } = req.body;
-  const user = (req as any).user;
+  const currentUser = (req as any).user;
 
   try {
+    const task = await prisma.task.findFirst({
+      where: {
+        id: taskId,
+        project: { orgId: currentUser.orgId },
+      },
+    });
+
+    if (!task) {
+      res.status(404).json({ error: "Task not found in your organization." });
+      return;
+    }
+
     const newAttachment = await prisma.attachment.create({
       data: {
         fileURL,
         fileName,
-        taskId: Number(taskId),
-        uploadedById: user.userId,
+        taskId: taskId,
+        uploadedById: currentUser.userId,
       },
     });
     res.status(201).json(newAttachment);

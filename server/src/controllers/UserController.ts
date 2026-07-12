@@ -3,7 +3,11 @@ import prisma from "../prisma";
 
 export const getUsers = async (req: Request, res: Response): Promise<void> => {
   try {
+    const user = (req as any).user;
     const users = await prisma.user.findMany({
+      where: {
+        orgId: user?.orgId || null,
+      },
       include: {
         team: true,
       },
@@ -20,21 +24,29 @@ export const getUserById = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { userId } = req.params;
+  const { userId } = req.params as { [key: string]: string };
+  const currentUser = (req as any).user;
 
   try {
-    const user = await prisma.user.findUnique({
+    const user = await prisma.user.findFirst({
       where: {
-        userId: Number(userId),
+        userId: userId,
+        orgId: currentUser.orgId,
       },
       include: {
         team: true,
         authoredTasks: {
+          where: {
+            project: { orgId: currentUser.orgId },
+          },
           include: {
             project: true,
           },
         },
         assignedTasks: {
+          where: {
+            project: { orgId: currentUser.orgId },
+          },
           include: {
             project: true,
           },
@@ -52,5 +64,21 @@ export const getUserById = async (
     res
       .status(500)
       .json({ error: "Error retrieving user.", details: String(err) });
+  }
+};
+
+export const updateUser = async (req: Request, res: Response): Promise<void> => {
+  const { userId } = req.params as { userId: string };
+  const { username } = req.body;
+  try {
+    const updatedUser = await prisma.user.update({
+      where: { userId },
+      data: { username },
+    });
+    res.json(updatedUser);
+  } catch (err) {
+    res
+      .status(500)
+      .json({ error: "Error updating user.", details: String(err) });
   }
 };

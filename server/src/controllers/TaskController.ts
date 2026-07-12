@@ -1,15 +1,14 @@
 import { Request, Response } from "express";
 import prisma from "../prisma";
-import { getAuth } from "@clerk/express";
 
 export const getTasks = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { projectId, priority } = req.query;
+    const { projectId, priority } = req.query as { [key: string]: string };
 
     const where: Record<string, unknown> = {};
 
     if (projectId) {
-      where.projectId = Number(projectId);
+      where.projectId = projectId;
     }
 
     if (priority && typeof priority === "string") {
@@ -43,12 +42,14 @@ export const getTaskById = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { taskId } = req.params;
+  const { taskId } = req.params as { [key: string]: string };
+  const currentUser = (req as any).user;
 
   try {
-    const task = await prisma.task.findUnique({
+    const task = await prisma.task.findFirst({
       where: {
-        id: Number(taskId),
+        id: taskId,
+        project: { orgId: currentUser.orgId },
       },
       include: {
         author: true,
@@ -99,11 +100,24 @@ export const createTask = async (
     dueDate,
     points,
     projectId,
-    authorUserId,
     assignedUserId,
   } = req.body;
+  const currentUser = (req as any).user;
 
   try {
+    const project = await prisma.project.findFirst({
+      where: {
+        id: projectId,
+        orgId: currentUser.orgId,
+      },
+    });
+
+    if (!project) {
+      res.status(404).json({ error: "Project not found in your organization." });
+      return;
+    }
+
+    const authorUserId = currentUser.userId;
     const newTask = await prisma.task.create({
       data: {
         title,
@@ -131,7 +145,7 @@ export const updateTask = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { taskId } = req.params;
+  const { taskId } = req.params as { [key: string]: string };
   const {
     title,
     description,
@@ -143,11 +157,24 @@ export const updateTask = async (
     points,
     assignedUserId,
   } = req.body;
+  const currentUser = (req as any).user;
 
   try {
+    const task = await prisma.task.findFirst({
+      where: {
+        id: taskId,
+        project: { orgId: currentUser.orgId },
+      },
+    });
+
+    if (!task) {
+      res.status(404).json({ error: "Task not found in your organization." });
+      return;
+    }
+
     const updatedTask = await prisma.task.update({
       where: {
-        id: Number(taskId),
+        id: taskId,
       },
       data: {
         title,
@@ -173,13 +200,26 @@ export const updateTaskStatus = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { taskId } = req.params;
+  const { taskId } = req.params as { [key: string]: string };
   const { status } = req.body;
+  const currentUser = (req as any).user;
 
   try {
+    const task = await prisma.task.findFirst({
+      where: {
+        id: taskId,
+        project: { orgId: currentUser.orgId },
+      },
+    });
+
+    if (!task) {
+      res.status(404).json({ error: "Task not found in your organization." });
+      return;
+    }
+
     const updatedTask = await prisma.task.update({
       where: {
-        id: Number(taskId),
+        id: taskId,
       },
       data: {
         status: status as string,
@@ -195,23 +235,35 @@ export const deleteTask = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { taskId } = req.params;
+  const { taskId } = req.params as { [key: string]: string };
+  const currentUser = (req as any).user;
 
   try {
-    // Delete related records first to avoid FK constraint errors
+    const task = await prisma.task.findFirst({
+      where: {
+        id: taskId,
+        project: { orgId: currentUser.orgId },
+      },
+    });
+
+    if (!task) {
+      res.status(404).json({ error: "Task not found in your organization." });
+      return;
+    }
+
     await prisma.taskAssignment.deleteMany({
-      where: { taskId: Number(taskId) },
+      where: { taskId: taskId },
     });
     await prisma.attachment.deleteMany({
-      where: { taskId: Number(taskId) },
+      where: { taskId: taskId },
     });
     await prisma.comment.deleteMany({
-      where: { taskId: Number(taskId) },
+      where: { taskId: taskId },
     });
 
     await prisma.task.delete({
       where: {
-        id: Number(taskId),
+        id: taskId,
       },
     });
     res.status(204).send();
@@ -226,14 +278,28 @@ export const getTasksByUser = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { userId } = req.params;
+  const { userId } = req.params as { [key: string]: string };
+  const currentUser = (req as any).user;
 
   try {
+    const targetUser = await prisma.user.findFirst({
+      where: {
+        userId: userId,
+        orgId: currentUser.orgId,
+      },
+    });
+
+    if (!targetUser) {
+      res.status(404).json({ error: "User not found in your organization." });
+      return;
+    }
+
     const tasks = await prisma.task.findMany({
       where: {
+        project: { orgId: currentUser.orgId },
         OR: [
-          { authorUserId: Number(userId) },
-          { assignedUserId: Number(userId) },
+          { authorUserId: userId },
+          { assignedUserId: userId },
         ],
       },
       include: {
@@ -248,9 +314,6 @@ export const getTasksByUser = async (
   } catch (err) {
     res
       .status(500)
-      .json({
-        error: "Error retrieving tasks for user.",
-        details: String(err),
-      });
+      .json({ error: "Error retrieving user tasks.", details: String(err) });
   }
 };

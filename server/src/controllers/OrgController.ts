@@ -22,11 +22,32 @@ export const createOrg = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
+    // Generate unique invite code with retry logic
+    let inviteCode = "";
+    let isUnique = false;
+    let attempts = 0;
+
+    while (!isUnique && attempts < 10) {
+      inviteCode = generateInviteCode();
+      const existing = await prisma.organization.findUnique({
+        where: { inviteCode },
+      });
+      if (!existing) {
+        isUnique = true;
+      }
+      attempts++;
+    }
+
+    if (!isUnique) {
+      res.status(500).json({ error: "Failed to generate a unique invite code after multiple attempts." });
+      return;
+    }
+
     // Create the org
     const org = await prisma.organization.create({
       data: {
         name,
-        inviteCode: generateInviteCode(),
+        inviteCode,
       },
     });
 

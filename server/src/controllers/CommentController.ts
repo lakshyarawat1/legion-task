@@ -5,12 +5,25 @@ export const getComments = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  const { taskId } = req.query;
+  const { taskId } = req.query as { [key: string]: string };
+  const currentUser = (req as any).user;
 
   try {
+    const task = await prisma.task.findFirst({
+      where: {
+        id: taskId,
+        project: { orgId: currentUser.orgId },
+      },
+    });
+
+    if (!task) {
+      res.status(404).json({ error: "Task not found in your organization." });
+      return;
+    }
+
     const comments = await prisma.comment.findMany({
       where: {
-        taskId: Number(taskId),
+        taskId: taskId,
       },
       include: {
         user: true,
@@ -27,14 +40,26 @@ export const createComment = async (
   res: Response
 ): Promise<void> => {
   const { text, taskId } = req.body;
-  const user = (req as any).user;
+  const currentUser = (req as any).user;
 
   try {
+    const task = await prisma.task.findFirst({
+      where: {
+        id: taskId,
+        project: { orgId: currentUser.orgId },
+      },
+    });
+
+    if (!task) {
+      res.status(404).json({ error: "Task not found in your organization." });
+      return;
+    }
+
     const newComment = await prisma.comment.create({
       data: {
         text,
-        taskId: Number(taskId),
-        userId: user.userId,
+        taskId: taskId,
+        userId: currentUser.userId,
       },
     });
     res.status(201).json(newComment);
