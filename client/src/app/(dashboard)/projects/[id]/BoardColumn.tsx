@@ -8,13 +8,13 @@ import TaskCard from "./TaskCard";
 type BoardColumnProps = {
   status: string;
   tasks: Task[];
-  moveTask: (taskId: number, toStatus: string) => void;
+  moveTask: (taskId: string, toStatus: string) => void;
 };
 
 const BoardColumn = ({ status, tasks, moveTask }: BoardColumnProps) => {
   const [{ isOver }, drop] = useDrop(() => ({
     accept: "task",
-    drop: (item: { id: number }) => moveTask(item.id, status),
+    drop: (item: { id: string }) => moveTask(item.id, status),
     collect: (monitor) => ({
       isOver: !!monitor.isOver(),
     }),

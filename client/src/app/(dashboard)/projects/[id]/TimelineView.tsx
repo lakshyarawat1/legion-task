@@ -9,7 +9,7 @@ import "gantt-task-react/dist/index.css";
 import { useTheme } from "next-themes";
 import { format } from "date-fns";
 
-const TimelineView = ({ projectId }: { projectId: number }) => {
+const TimelineView = ({ projectId }: { projectId: string }) => {
   const { data: tasks, isLoading, error } = useGetTasksQuery({ projectId });
   const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.Month);
   const { resolvedTheme } = useTheme();
@@ -29,7 +29,13 @@ const TimelineView = ({ projectId }: { projectId: number }) => {
     return <div className="p-8 text-destructive bg-red-100 dark:bg-red-900/30 rounded-xl">An error occurred while fetching tasks.</div>;
   }
 
-  const validTasks = tasks?.filter((t) => t.startDate && t.dueDate) || [];
+  const isValidDate = (dateString?: string) => {
+    if (!dateString) return false;
+    const date = new Date(dateString);
+    return !isNaN(date.getTime());
+  };
+
+  const validTasks = tasks?.filter((t) => isValidDate(t.startDate) && isValidDate(t.dueDate)) || [];
 
   if (validTasks.length === 0) {
     return (

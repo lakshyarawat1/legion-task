@@ -14,13 +14,13 @@ import ModalNewTask from "@/app/(components)/ModalNewTask/ModalNewTask";
 
 export default function ProjectPage() {
   const { id } = useParams();
-  const projectId = parseInt(id as string, 10);
+  const projectId = id as string;
   const [activeTab, setActiveTab] = useState("board");
   const [isNewTaskModalOpen, setIsNewTaskModalOpen] = useState(false);
 
-  const { data: project, isLoading, isError } = useGetProjectByIdQuery({ id: projectId });
+  const { data: project, isLoading, isError, error } = useGetProjectByIdQuery({ id: projectId });
 
-  if (isNaN(projectId)) {
+  if (!projectId) {
     return <div className="p-8 text-destructive bg-red-100 dark:bg-red-900/30">Invalid project ID</div>;
   }
 
@@ -32,7 +32,7 @@ export default function ProjectPage() {
             {isLoading ? (
               <div className="h-8 w-64 animate-pulse rounded bg-secondary" />
             ) : isError ? (
-              "Error loading project"
+              <span className="text-red-500 text-sm">Error loading project: {JSON.stringify(error)}</span>
             ) : (
               project?.name || "Unknown Project"
             )}

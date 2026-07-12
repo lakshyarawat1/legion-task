@@ -8,11 +8,11 @@ import BoardColumn from "./BoardColumn";
 
 const taskStatus = ["To Do", "Work In Progress", "Under Review", "Completed"];
 
-const BoardView = ({ projectId }: { projectId: number }) => {
+const BoardView = ({ projectId }: { projectId: string }) => {
   const { data: tasks, isLoading, error } = useGetTasksQuery({ projectId });
   const [updateTaskStatus] = useUpdateTaskStatusMutation();
 
-  const moveTask = (taskId: number, toStatus: string) => {
+  const moveTask = (taskId: string, toStatus: string) => {
     updateTaskStatus({ taskId, status: toStatus });
   };
 

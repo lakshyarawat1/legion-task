@@ -6,11 +6,14 @@ import { ChevronDown, ChevronUp, ArrowUpDown } from "lucide-react";
 import { StatusBadge, PriorityBadge } from "@/app/(components)/Badges/Badges";
 import EmptyState from "@/app/(components)/EmptyState/EmptyState";
 import { format } from "date-fns";
+import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 
 type SortField = keyof Task | "assigneeName";
 type SortDirection = "asc" | "desc";
 
-const TableView = ({ projectId }: { projectId: number }) => {
+const TableView = ({ projectId }: { projectId: string }) => {
+  const router = useRouter();
   const { data: tasks, isLoading, error } = useGetTasksQuery({ projectId });
   const [sortField, setSortField] = useState<SortField>("dueDate");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
@@ -57,8 +60,14 @@ const TableView = ({ projectId }: { projectId: number }) => {
       aVal = a.assignee?.username || "";
       bVal = b.assignee?.username || "";
     } else if (sortField === "dueDate" || sortField === "startDate") {
-      aVal = aVal ? new Date(aVal).getTime() : 0;
-      bVal = bVal ? new Date(bVal).getTime() : 0;
+      aVal = aVal ? new Date(aVal as string).getTime() : 0;
+      bVal = bVal ? new Date(bVal as string).getTime() : 0;
+    } else if (sortField === "points") {
+      aVal = aVal !== null && aVal !== undefined ? Number(aVal) : -Infinity;
+      bVal = bVal !== null && bVal !== undefined ? Number(bVal) : -Infinity;
+    } else {
+      aVal = aVal !== null && aVal !== undefined ? String(aVal).toLowerCase() : "";
+      bVal = bVal !== null && bVal !== undefined ? String(bVal).toLowerCase() : "";
     }
 
     if (aVal < bVal) return sortDirection === "asc" ? -1 : 1;
@@ -106,7 +115,16 @@ const TableView = ({ projectId }: { projectId: number }) => {
           </thead>
           <tbody className="divide-y divide-border bg-card">
             {sortedTasks.map((task) => (
-              <tr key={task.id} className="transition-colors hover:bg-secondary/40">
+              <motion.tr 
+                layoutId={`task-card-${task.id}`}
+                key={task.id} 
+                onClick={() => {
+                  const url = new URL(window.location.href);
+                  url.searchParams.set("taskId", task.id.toString());
+                  router.push(url.pathname + url.search, { scroll: false });
+                }}
+                className="transition-colors hover:bg-secondary/40 cursor-pointer"
+              >
                 <td className="px-6 py-4 whitespace-nowrap font-semibold text-foreground">
                   {task.title}
                 </td>
@@ -143,7 +161,7 @@ const TableView = ({ projectId }: { projectId: number }) => {
                     <span className="text-muted-foreground">-</span>
                   )}
                 </td>
-              </tr>
+              </motion.tr>
             ))}
           </tbody>
         </table>

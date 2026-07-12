@@ -7,7 +7,9 @@ import { PriorityBadge } from "@/app/(components)/Badges/Badges";
 import EmptyState from "@/app/(components)/EmptyState/EmptyState";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import { getAvatarColor } from "../../users/page";
+import { getAvatarColor } from "@/lib/utils";
+import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 
 const statusGroups = [
   { id: "To Do", color: "bg-blue-500" },
@@ -16,7 +18,8 @@ const statusGroups = [
   { id: "Completed", color: "bg-emerald-500" },
 ];
 
-const ListView = ({ projectId }: { projectId: number }) => {
+const ListView = ({ projectId }: { projectId: string }) => {
+  const router = useRouter();
   const { data: tasks, isLoading, error } = useGetTasksQuery({ projectId });
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
     "To Do": true,
@@ -91,7 +94,16 @@ const ListView = ({ projectId }: { projectId: number }) => {
             {isExpanded && (
               <div className="flex flex-col divide-y divide-border">
                 {groupTasks.map((task) => (
-                  <div key={task.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 transition-colors hover:bg-secondary/30">
+                  <motion.div 
+                    layoutId={`task-card-${task.id}`}
+                    key={task.id} 
+                    onClick={() => {
+                      const url = new URL(window.location.href);
+                      url.searchParams.set("taskId", task.id.toString());
+                      router.push(url.pathname + url.search, { scroll: false });
+                    }}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between p-4 transition-colors hover:bg-secondary/50 cursor-pointer"
+                  >
                     <div className="flex flex-col gap-2">
                       <div className="flex items-center gap-3">
                         <span className="font-semibold text-foreground text-base">{task.title}</span>
@@ -132,7 +144,7 @@ const ListView = ({ projectId }: { projectId: number }) => {
                         )}
                       </div>
                     </div>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
             )}

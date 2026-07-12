@@ -1,17 +1,23 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useDrag } from "react-dnd";
 import { Task } from "@/state/api";
 import { format } from "date-fns";
 import { MessageSquareMore } from "lucide-react";
 import Image from "next/image";
+import { motion } from "framer-motion";
+import UserAvatar from "@/app/(components)/UserAvatar/UserAvatar";
+
+import { useRouter } from "next/navigation";
 
 type TaskCardProps = {
   task: Task;
 };
 
 const TaskCard = ({ task }: TaskCardProps) => {
+  const router = useRouter();
+  const [imageError, setImageError] = useState(false);
   const [{ isDragging }, drag] = useDrag(() => ({
     type: "task",
     item: { id: task.id },
@@ -46,21 +52,27 @@ const TaskCard = ({ task }: TaskCardProps) => {
   );
 
   return (
-    <div
-      ref={(instance) => {
-        drag(instance);
-      }}
-      className={`mb-4 rounded-xl bg-card p-4 shadow-sm transition-all duration-200 hover:shadow-md dark:border dark:border-border dark:bg-card/80 dark:backdrop-blur-sm ${
-        isDragging ? "opacity-50" : "opacity-100"
-      }`}
+    <div 
+      ref={drag as unknown as React.Ref<HTMLDivElement>}
+      className={`mb-3 ${isDragging ? "opacity-50" : "opacity-100"}`}
     >
-      {task.attachments && task.attachments.length > 0 && (
+      <motion.div
+        layoutId={`task-card-${task.id}`}
+        onClick={() => {
+          const url = new URL(window.location.href);
+          url.searchParams.set("taskId", task.id.toString());
+          router.push(url.pathname + url.search, { scroll: false });
+        }}
+        className="rounded-2xl bg-card p-4 shadow-sm border border-border transition-all hover:shadow-md hover:border-blue-500/50 cursor-pointer"
+      >
+      {task.attachments && task.attachments.length > 0 && !imageError && (
         <Image
-          src={`/${task.attachments[0].fileURL}`}
+          src={task.attachments[0].fileURL.startsWith("http") ? task.attachments[0].fileURL : `/${task.attachments[0].fileURL}`}
           alt={task.attachments[0].fileName || "Attachment"}
           width={400}
           height={200}
-          className="mb-3 h-auto w-full rounded-lg"
+          className="mb-3 h-auto w-full rounded-lg object-cover"
+          onError={() => setImageError(true)}
         />
       )}
       <div className="mb-2 flex items-start justify-between">
@@ -76,9 +88,9 @@ const TaskCard = ({ task }: TaskCardProps) => {
         </div>
       </div>
 
-      <div className="my-3 flex justify-between">
+      <motion.div layoutId={`task-title-${task.id}`} className="my-3 flex justify-between">
         <h4 className="text-md font-bold text-foreground">{task.title}</h4>
-      </div>
+      </motion.div>
 
       <div className="text-xs text-muted-foreground">
         {formattedStartDate && <span>{formattedStartDate} - </span>}
@@ -87,30 +99,23 @@ const TaskCard = ({ task }: TaskCardProps) => {
       <p className="mt-2 text-sm text-muted-foreground">{task.description}</p>
       <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
         <div className="flex -space-x-[6px] overflow-hidden">
-          {task.assignee && task.assignee.profilePictureUrl && (
-            <Image
-              src={`/${task.assignee.profilePictureUrl}`}
-              alt={task.assignee.username}
-              width={30}
-              height={30}
-              className="h-8 w-8 rounded-full border-2 border-white object-cover dark:border-black"
-            />
+          {task.assignee && (
+            <div className="border-2 border-card rounded-full shadow-sm z-10">
+              <UserAvatar user={task.assignee} size={28} />
+            </div>
           )}
-          {task.author && task.author.profilePictureUrl && (
-            <Image
-              src={`/${task.author.profilePictureUrl}`}
-              alt={task.author.username}
-              width={30}
-              height={30}
-              className="h-8 w-8 rounded-full border-2 border-white object-cover dark:border-black"
-            />
+          {task.author && task.author.userId !== task.assignee?.userId && (
+            <div className="border-2 border-card rounded-full shadow-sm">
+              <UserAvatar user={task.author} size={28} />
+            </div>
           )}
         </div>
         <div className="flex items-center text-muted-foreground">
           <MessageSquareMore className="mr-1 h-4 w-4" />
           <span className="text-sm">{numberOfComments}</span>
         </div>
-      </div>
+        </div>
+      </motion.div>
     </div>
   );
 };
