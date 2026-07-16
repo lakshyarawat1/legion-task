@@ -167,12 +167,18 @@ body,
   fill: var(--foreground) !important;
   font-family: var(--font-sans) !important;
 }
-.gantt-wrapper ._2dZTy /* Grid header background */ {
+.gantt-wrapper ._2dZTy,
+.gantt-wrapper ._35nLX /* Grid/Calendar header background */ {
   fill: var(--card) !important;
+  stroke: var(--border) !important;
 }
 .gantt-wrapper ._2dZTy:nth-child(even) {
   fill: var(--secondary) !important;
   opacity: 0.3;
+}
+.gantt-wrapper ._9w8d5,
+.gantt-wrapper ._2q1Kt /* Date header text colors */ {
+  fill: var(--foreground) !important;
 }
 .gantt-wrapper ._RuwuK,
 .gantt-wrapper ._1rLuZ,
@@ -216,4 +222,40 @@ body,
   border: none !important;
   box-shadow: none !important;
   padding: 0 !important;
+}
+
+/* Custom premium hover glowing effects on timeline task bars based on priority colors */
+.gantt-wrapper ._KxSXS:hover rect[fill="#dc2626"],
+.gantt-wrapper ._KxSXS:hover rect[fill="#ef4444"],
+.gantt-wrapper ._RRr13:hover rect[fill="#dc2626"],
+.gantt-wrapper ._RRr13:hover rect[fill="#ef4444"] {
+  filter: drop-shadow(0 0 10px rgba(239, 68, 68, 0.75)) !important;
+}
+.gantt-wrapper ._KxSXS:hover rect[fill="#ea580c"],
+.gantt-wrapper ._KxSXS:hover rect[fill="#f97316"],
+.gantt-wrapper ._RRr13:hover rect[fill="#ea580c"],
+.gantt-wrapper ._RRr13:hover rect[fill="#f97316"] {
+  filter: drop-shadow(0 0 10px rgba(249, 115, 22, 0.75)) !important;
+}
+.gantt-wrapper ._KxSXS:hover rect[fill="#d97706"],
+.gantt-wrapper ._KxSXS:hover rect[fill="#f59e0b"],
+.gantt-wrapper ._RRr13:hover rect[fill="#d97706"],
+.gantt-wrapper ._RRr13:hover rect[fill="#f59e0b"] {
+  filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.75)) !important;
+}
+.gantt-wrapper ._KxSXS:hover rect[fill="#2563eb"],
+.gantt-wrapper ._KxSXS:hover rect[fill="#3b82f6"],
+.gantt-wrapper ._RRr13:hover rect[fill="#2563eb"],
+.gantt-wrapper ._RRr13:hover rect[fill="#3b82f6"] {
+  filter: drop-shadow(0 0 10px rgba(59, 130, 246, 0.75)) !important;
+}
+.gantt-wrapper ._KxSXS:hover rect[fill="#4b5563"],
+.gantt-wrapper ._KxSXS:hover rect[fill="#6b7280"],
+.gantt-wrapper ._RRr13:hover rect[fill="#4b5563"],
+.gantt-wrapper ._RRr13:hover rect[fill="#6b7280"] {
+  filter: drop-shadow(0 0 8px rgba(107, 114, 128, 0.55)) !important;
+}
+.gantt-wrapper ._KxSXS:hover rect[fill="#0275ff"],
+.gantt-wrapper ._RRr13:hover rect[fill="#0275ff"] {
+  filter: drop-shadow(0 0 10px rgba(2, 117, 255, 0.75)) !important;
 }

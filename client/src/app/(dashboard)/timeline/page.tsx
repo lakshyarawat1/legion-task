@@ -6,12 +6,22 @@ import { CalendarDays } from "lucide-react";
 import EmptyState from "@/app/(components)/EmptyState/EmptyState";
 import { Gantt, Task as GanttTask, ViewMode } from "gantt-task-react";
 import "gantt-task-react/dist/index.css";
+import { useTheme } from "next-themes";
 import { format } from "date-fns";
+import TimelineFilters from "./TimelineFilters";
 
 export default function TimelinePage() {
   const { data: projects, isLoading: isProjectsLoading } = useGetProjectsQuery();
   const { data: tasks, isLoading: isTasksLoading } = useGetTasksQuery({});
   const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.Month);
+  const [hiddenProjects, setHiddenProjects] = useState<Record<string, boolean>>({});
+  const { resolvedTheme } = useTheme();
+  
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [priorityFilter, setPriorityFilter] = useState("All");
+
+  const isDark = resolvedTheme === "dark";
 
   if (isProjectsLoading || isTasksLoading) {
     return (
@@ -22,31 +32,117 @@ export default function TimelinePage() {
     );
   }
 
-  // Generate Gantt tasks for projects
-  const ganttTasks: GanttTask[] = (projects || [])
+  // Priority color mapping based on theme (representing criticality)
+  const getPriorityColor = (priority?: string) => {
+    if (isDark) {
+      switch (priority) {
+        case "Urgent": return { bg: "#dc2626", sel: "#b91c1c" }; // Red
+        case "High": return { bg: "#ea580c", sel: "#c2410c" }; // Orange
+        case "Medium": return { bg: "#d97706", sel: "#b45309" }; // Amber/Yellow
+        case "Low": return { bg: "#2563eb", sel: "#1d4ed8" }; // Blue
+        case "Backlog": return { bg: "#4b5563", sel: "#374151" }; // Gray
+        default: return { bg: "#2563eb", sel: "#1d4ed8" };
+      }
+    }
+    switch (priority) {
+      case "Urgent": return { bg: "#ef4444", sel: "#dc2626" };
+      case "High": return { bg: "#f97316", sel: "#ea580c" };
+      case "Medium": return { bg: "#f59e0b", sel: "#d97706" };
+      case "Low": return { bg: "#3b82f6", sel: "#2563eb" };
+      case "Backlog": return { bg: "#6b7280", sel: "#4b5563" };
+      default: return { bg: "#3b82f6", sel: "#2563eb" };
+    }
+  };
+
+  // Generate Gantt tasks for projects and their tasks
+  const ganttTasks: GanttTask[] = [];
+
+  (projects || [])
     .filter((project) => project.startDate && project.endDate)
-    .map((project) => {
-      // Calculate progress based on tasks for this project
-      const projectTasks = tasks?.filter((t) => t.projectId === project.id) || [];
-      const totalTasks = projectTasks.length;
-      const completedTasks = projectTasks.filter((t) => t.status === "Completed").length;
+    .forEach((project) => {
+      const projectMatchesSearch = !searchQuery || project.name.toLowerCase().includes(searchQuery.toLowerCase());
+
+      // Filter tasks for this project
+      const allProjectTasks = tasks?.filter((t) => t.projectId === project.id) || [];
+      const projectTasks = allProjectTasks.filter((t) => {
+        // Apply filters
+        if (statusFilter !== "All" && t.status !== statusFilter) return false;
+        if (priorityFilter !== "All" && t.priority !== priorityFilter) return false;
+        
+        const taskMatchesSearch = !searchQuery || t.title.toLowerCase().includes(searchQuery.toLowerCase());
+        
+        // If project matches search, we keep the task (as long as it passes status/priority)
+        // If project does not match search, task MUST match search
+        if (!projectMatchesSearch && !taskMatchesSearch) return false;
+        
+        return true;
+      });
+
+      // If the project doesn't match the search and has no tasks that match, hide it entirely
+      if (!projectMatchesSearch && projectTasks.length === 0) return;
+
+      // Calculate progress based on ALL tasks for this project (to reflect real project progress)
+      const totalTasks = allProjectTasks.length;
+      const completedTasks = allProjectTasks.filter((t) => t.status === "Completed").length;
       
       const progress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+      const projectId = `Project-${project.id}`;
       
-      return {
-        id: `Project-${project.id}`,
+      // Add the Project Task (colored with corporate blue accent)
+      ganttTasks.push({
+        id: projectId,
         type: "project",
         name: project.name,
         start: new Date(project.startDate!),
         end: new Date(project.endDate!),
         progress,
+        hideChildren: hiddenProjects[projectId] ?? false,
         isDisabled: true, // Read-only for global timeline
+        priority: "Project",
+        status: progress === 100 ? "Completed" : "Active",
         styles: {
-          progressColor: "#3B82F6", // blue-500
-          progressSelectedColor: "#2563EB", // blue-600
+          progressColor: "#0275ff", // Brand Accent (blue-primary)
+          progressSelectedColor: "#3b82f6",
+          backgroundColor: isDark ? "#2d3135" : "#e5e7eb",
+          backgroundSelectedColor: isDark ? "#3b3d40" : "#d1d5db",
         }
-      };
+      } as any);
+
+      // Add the individual Tasks under this project
+      projectTasks
+        .filter((task) => task.startDate && task.dueDate)
+        .forEach((task) => {
+          const colors = getPriorityColor(task.priority);
+          ganttTasks.push({
+            id: `Task-${task.id}`,
+            type: "task",
+            project: projectId, // Link to parent project
+            name: task.title,
+            start: new Date(task.startDate!),
+            end: new Date(task.dueDate!),
+            progress: getProgress(task.status),
+            isDisabled: true,
+            priority: task.priority,
+            status: task.status,
+            styles: {
+              progressColor: colors.bg,
+              progressSelectedColor: colors.sel,
+              backgroundColor: isDark ? "#1d1f21" : "#f3f4f6",
+              backgroundSelectedColor: isDark ? "#2d3135" : "#e5e7eb",
+            }
+          } as any);
+        });
     });
+
+  // Helper function to calculate task progress
+  function getProgress(status?: string) {
+    switch (status) {
+      case "Completed": return 100;
+      case "Under Review": return 75;
+      case "Work In Progress": return 50;
+      default: return 0;
+    }
+  }
 
   return (
     <div className="flex h-full w-full flex-col p-8 max-w-7xl mx-auto">
@@ -89,6 +185,17 @@ export default function TimelinePage() {
         </div>
       </div>
 
+      <div className="mb-6">
+        <TimelineFilters
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          statusFilter={statusFilter}
+          setStatusFilter={setStatusFilter}
+          priorityFilter={priorityFilter}
+          setPriorityFilter={setPriorityFilter}
+        />
+      </div>
+
       <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden flex-1 min-h-[500px]">
         {ganttTasks.length === 0 ? (
           <EmptyState
@@ -102,19 +209,54 @@ export default function TimelinePage() {
             <Gantt
               tasks={ganttTasks}
               viewMode={viewMode}
+              onExpanderClick={(task) => setHiddenProjects(prev => ({ ...prev, [task.id]: !prev[task.id] }))}
               listCellWidth="150px"
               columnWidth={viewMode === ViewMode.Month ? 150 : viewMode === ViewMode.Week ? 250 : 60}
               barCornerRadius={8}
               fontFamily="inherit"
               fontSize="12px"
-              TooltipContent={({ task }) => (
-                <div className="relative rounded-xl border border-border bg-card/90 backdrop-blur-xl p-4 shadow-xl z-[100] min-w-[200px]">
-                  <h4 className="font-bold text-foreground text-sm mb-1">{task.name}</h4>
-                  <div className="flex justify-between items-center text-xs text-muted-foreground mb-2">
-                    <span>{format(task.start, "MMM d")} - {format(task.end, "MMM d")}</span>
-                    <span className="font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">
-                      {Math.round(task.progress)}%
-                    </span>
+              rowHeight={50}
+              todayColor={isDark ? "rgba(2, 117, 255, 0.15)" : "rgba(59, 130, 246, 0.15)"}
+              arrowColor={isDark ? "#2d3135" : "#e5e7eb"}
+              barBackgroundColor={isDark ? "#1d1f21" : "#f3f4f6"}
+              barBackgroundSelectedColor={isDark ? "#2d3135" : "#e5e7eb"}
+              projectBackgroundColor={isDark ? "#1d1f21" : "#f3f4f6"}
+              projectProgressColor={isDark ? "#0275ff" : "#3b82f6"}
+              projectProgressSelectedColor={isDark ? "#3b82f6" : "#2563eb"}
+              TooltipContent={({ task }: any) => (
+                <div className="relative rounded-xl border border-border bg-card/90 backdrop-blur-xl p-4 shadow-xl z-[100] min-w-[220px]">
+                  <div className="flex justify-between items-start gap-2 mb-2">
+                    <h4 className="font-bold text-foreground text-sm line-clamp-2">{task.name}</h4>
+                    {task.priority && (
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-semibold shrink-0 ${
+                        task.priority === "Project" ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" :
+                        task.priority === "Urgent" ? "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300" :
+                        task.priority === "High" ? "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300" :
+                        task.priority === "Medium" ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300" :
+                        task.priority === "Low" ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" :
+                        "bg-gray-100 text-gray-700 dark:bg-gray-800/40 dark:text-gray-300"
+                      }`}>
+                        {task.priority}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-1 text-xs text-muted-foreground">
+                    <div className="flex justify-between">
+                      <span>Timeline:</span>
+                      <span className="font-medium text-foreground">{format(task.start, "MMM d")} - {format(task.end, "MMM d")}</span>
+                    </div>
+                    {task.status && (
+                      <div className="flex justify-between">
+                        <span>Status:</span>
+                        <span className="font-medium text-foreground">{task.status}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between mt-1 pt-1 border-t border-border/40">
+                      <span>Progress:</span>
+                      <span className="font-bold text-primary">
+                        {Math.round(task.progress)}%
+                      </span>
+                    </div>
                   </div>
                 </div>
               )}
