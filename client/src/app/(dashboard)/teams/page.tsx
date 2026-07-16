@@ -255,7 +255,7 @@ export default function TeamsPage() {
 
                     <div className="space-y-2">
                       <Label htmlFor="editProductOwner">Product Owner</Label>
-                      <Select value={editProductOwner} onValueChange={setEditProductOwner}>
+                      <Select value={editProductOwner} onValueChange={(val) => setEditProductOwner(val || "")}>
                         <SelectTrigger className="w-full">
                           <SelectValue placeholder="Select Product Owner">
                             {editProductOwner !== "none"
@@ -276,7 +276,7 @@ export default function TeamsPage() {
 
                     <div className="space-y-2">
                       <Label htmlFor="editProjectManager">Project Manager</Label>
-                      <Select value={editProjectManager} onValueChange={setEditProjectManager}>
+                      <Select value={editProjectManager} onValueChange={(val) => setEditProjectManager(val || "")}>
                         <SelectTrigger className="w-full">
                           <SelectValue placeholder="Select Project Manager">
                             {editProjectManager !== "none"
@@ -356,7 +356,7 @@ export default function TeamsPage() {
                         </div>
 
                         <div className="pt-4 flex flex-col sm:flex-row items-center gap-3">
-                          <Select
+                          <Select<string>
                             onValueChange={async (val) => {
                               if (val && val !== "none") {
                                 await addTeamMember({ teamId: selectedTeam.id, userId: val });

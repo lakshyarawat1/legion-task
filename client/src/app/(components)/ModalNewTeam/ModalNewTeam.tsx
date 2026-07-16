@@ -71,7 +71,7 @@ const ModalNewTeam = ({ open, onClose }: ModalNewTeamProps) => {
 
           <div className="space-y-2">
             <Label htmlFor="productOwner">Product Owner</Label>
-            <Select value={productOwnerUserId} onValueChange={setProductOwnerUserId}>
+            <Select value={productOwnerUserId} onValueChange={(val) => setProductOwnerUserId(val || "")}>
               <SelectTrigger>
                 <SelectValue placeholder="Select Product Owner">
                   {productOwnerUserId && productOwnerUserId !== "none" 
@@ -92,7 +92,7 @@ const ModalNewTeam = ({ open, onClose }: ModalNewTeamProps) => {
 
           <div className="space-y-2">
             <Label htmlFor="projectManager">Project Manager</Label>
-            <Select value={projectManagerUserId} onValueChange={setProjectManagerUserId}>
+            <Select value={projectManagerUserId} onValueChange={(val) => setProjectManagerUserId(val || "")}>
               <SelectTrigger>
                 <SelectValue placeholder="Select Project Manager">
                   {projectManagerUserId && projectManagerUserId !== "none" 

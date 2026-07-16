@@ -17,7 +17,7 @@ type Props = {
 
 export default function ModalTaskDetail({ taskId, onClose }: Props) {
   const { data: task, isLoading, isError, error } = useGetTaskByIdQuery(
-    { taskId: taskId as number },
+    { taskId: taskId || "" },
     { skip: taskId === null }
   );
   const { data: currentUser } = useGetMeQuery();

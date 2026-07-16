@@ -53,8 +53,8 @@ const TableView = ({ projectId }: { projectId: string }) => {
   }
 
   const sortedTasks = [...tasks].sort((a, b) => {
-    let aVal: unknown = a[sortField as keyof Task];
-    let bVal: unknown = b[sortField as keyof Task];
+    let aVal: any = a[sortField as keyof Task];
+    let bVal: any = b[sortField as keyof Task];
 
     if (sortField === "assigneeName") {
       aVal = a.assignee?.username || "";

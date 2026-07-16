@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useCreateTaskMutation, useGetUsersQuery } from "@/state/api";
 import { formatUsername } from "@/lib/utils";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const statusOptions = ["To Do", "Work In Progress", "Under Review", "Completed"];
 const priorityOptions = ["Urgent", "High", "Medium", "Low", "Backlog"];
@@ -108,33 +109,33 @@ const ModalNewTask = ({ open, onClose, projectId }: ModalNewTaskProps) => {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="task-status">Status</Label>
-              <select
-                id="task-status"
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-                className="flex h-9 w-full rounded-xl border border-input bg-card px-3 py-1 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                {statusOptions.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
+              <Select value={status} onValueChange={(val) => setStatus(val || "To Do")}>
+                <SelectTrigger className="w-full h-10">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {statusOptions.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {s}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="task-priority">Priority</Label>
-              <select
-                id="task-priority"
-                value={priority}
-                onChange={(e) => setPriority(e.target.value)}
-                className="flex h-9 w-full rounded-xl border border-input bg-card px-3 py-1 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                {priorityOptions.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </select>
+              <Select value={priority} onValueChange={(val) => setPriority(val || "Medium")}>
+                <SelectTrigger className="w-full h-10">
+                  <SelectValue placeholder="Priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  {priorityOptions.map((p) => (
+                    <SelectItem key={p} value={p}>
+                      {p}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -173,19 +174,23 @@ const ModalNewTask = ({ open, onClose, projectId }: ModalNewTaskProps) => {
             </div>
             <div className="space-y-2">
               <Label htmlFor="task-assignee">Assignee</Label>
-              <select
-                id="task-assignee"
-                value={assignedUserId}
-                onChange={(e) => setAssignedUserId(e.target.value)}
-                className="flex h-9 w-full rounded-xl border border-input bg-card px-3 py-1 text-sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <option value="">Unassigned</option>
-                {users?.map((user) => (
-                  <option key={user.userId} value={user.userId}>
-                    {formatUsername(user.username)}
-                  </option>
-                ))}
-              </select>
+              <Select value={assignedUserId || "none"} onValueChange={(val) => setAssignedUserId(val === "none" ? "" : val || "")}>
+                <SelectTrigger className="w-full h-10">
+                  <SelectValue placeholder="Unassigned">
+                    {assignedUserId 
+                      ? formatUsername(users?.find((u) => u.userId === assignedUserId)?.username || "")
+                      : "Unassigned"}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Unassigned</SelectItem>
+                  {users?.map((user) => (
+                    <SelectItem key={user.userId} value={user.userId}>
+                      {formatUsername(user.username)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
