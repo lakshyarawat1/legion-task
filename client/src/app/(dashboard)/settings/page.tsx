@@ -1,20 +1,166 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useTheme } from "next-themes";
-import { Sun, Moon, Monitor, User as UserIcon, Code2, Pencil, Check, X } from "lucide-react";
+import {
+  Sun,
+  Moon,
+  Monitor,
+  User as UserIcon,
+  Code2,
+  Pencil,
+  Check,
+  X,
+  Bell,
+  BellOff,
+  Palette,
+  Shield,
+  Keyboard,
+  Info,
+  ExternalLink,
+  Copy,
+  CheckCircle2,
+  Settings2,
+  Globe,
+  Clock,
+  LayoutDashboard,
+  Columns3,
+  Table2,
+  CalendarDays,
+  ListTodo,
+  LogOut,
+} from "lucide-react";
 import { cn, formatUsername, getAvatarColor } from "@/lib/utils";
 import { useGetMeQuery, useUpdateUserMutation } from "@/state/api";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useClerk } from "@clerk/nextjs";
 
+// ── Toggle Switch ────────────────────────────────────────
+function ToggleSwitch({ checked, onChange, disabled = false }: { checked: boolean; onChange: (val: boolean) => void; disabled?: boolean }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className={cn(
+        "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+        checked ? "bg-primary" : "bg-secondary",
+        disabled && "cursor-not-allowed opacity-50"
+      )}
+    >
+      <span
+        className={cn(
+          "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out",
+          checked ? "translate-x-5" : "translate-x-0"
+        )}
+      />
+    </button>
+  );
+}
+
+// ── Settings Row ─────────────────────────────────────────
+function SettingsRow({
+  icon: Icon,
+  title,
+  description,
+  children,
+  className,
+}: {
+  icon?: React.ElementType;
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={cn("flex items-center justify-between py-4 gap-4", className)}>
+      <div className="flex items-start gap-3 min-w-0">
+        {Icon && (
+          <div className="mt-0.5 rounded-lg bg-secondary p-2 shrink-0">
+            <Icon className="h-4 w-4 text-muted-foreground" />
+          </div>
+        )}
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-foreground">{title}</p>
+          {description && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{description}</p>}
+        </div>
+      </div>
+      <div className="shrink-0">{children}</div>
+    </div>
+  );
+}
+
+// ── Keyboard Shortcut Badge ──────────────────────────────
+function KbdBadge({ keys }: { keys: string[] }) {
+  return (
+    <div className="flex items-center gap-1">
+      {keys.map((key, i) => (
+        <React.Fragment key={key}>
+          {i > 0 && <span className="text-muted-foreground text-xs">+</span>}
+          <kbd className="inline-flex h-6 items-center justify-center rounded-md border border-border bg-secondary px-2 text-[11px] font-mono font-medium text-muted-foreground shadow-sm">
+            {key}
+          </kbd>
+        </React.Fragment>
+      ))}
+    </div>
+  );
+}
+
+// ── Section Wrapper ──────────────────────────────────────
+function SettingsSection({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
+  return (
+    <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+      <div className="mb-2 border-b border-border pb-4">
+        <h2 className="text-lg font-semibold text-foreground">{title}</h2>
+        {description && <p className="text-sm text-muted-foreground mt-0.5">{description}</p>}
+      </div>
+      <div className="divide-y divide-border/50">{children}</div>
+    </section>
+  );
+}
+
+// ════════════════════════════════════════════════════════
+//  MAIN SETTINGS PAGE
+// ════════════════════════════════════════════════════════
 export default function SettingsPage() {
   const { theme, setTheme, resolvedTheme } = useTheme();
   const { data: currentUser } = useGetMeQuery();
   const [updateUser, { isLoading: isUpdating }] = useUpdateUserMutation();
+  const { signOut } = useClerk();
   const [mounted, setMounted] = useState(false);
+  const [activeTab, setActiveTab] = useState("general");
+
+  // Profile editing
   const [isEditing, setIsEditing] = useState(false);
   const [editUsername, setEditUsername] = useState("");
+
+  // Notification preferences (client-local for now)
+  const [notifTaskAssigned, setNotifTaskAssigned] = useState(true);
+  const [notifCommentAdded, setNotifCommentAdded] = useState(true);
+  const [notifStatusChange, setNotifStatusChange] = useState(false);
+  const [notifDueDateReminder, setNotifDueDateReminder] = useState(true);
+  const [notifSoundEnabled, setNotifSoundEnabled] = useState(false);
+
+  // Display preferences
+  const [defaultView, setDefaultView] = useState("board");
+  const [compactMode, setCompactMode] = useState(false);
+  const [animationsEnabled, setAnimationsEnabled] = useState(true);
+  const [dateFormat, setDateFormat] = useState("relative");
+  const [timezone, setTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone);
+
+  // Copy-to-clipboard
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  const copyToClipboard = useCallback((value: string, field: string) => {
+    navigator.clipboard.writeText(value);
+    setCopiedField(field);
+    setTimeout(() => setCopiedField(null), 2000);
+  }, []);
 
   useEffect(() => {
     if (currentUser && !isEditing) {
@@ -27,7 +173,6 @@ export default function SettingsPage() {
       setIsEditing(false);
       return;
     }
-
     try {
       await updateUser({ userId: currentUser.userId, username: editUsername }).unwrap();
       setIsEditing(false);
@@ -36,208 +181,454 @@ export default function SettingsPage() {
     }
   };
 
-  // Avoid hydration mismatch
   useEffect(() => {
     setMounted(true);
   }, []);
 
   if (!mounted) return null;
 
+  const viewIcons: Record<string, React.ElementType> = {
+    board: Columns3,
+    list: ListTodo,
+    table: Table2,
+    timeline: CalendarDays,
+  };
+
   return (
-    <div className="flex h-full w-full flex-col p-8 max-w-4xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground">Settings</h1>
-        <p className="text-muted-foreground mt-1">Manage your application preferences and profile.</p>
+    <div className="flex h-full w-full flex-col p-8 max-w-5xl mx-auto">
+      {/* Page Header */}
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
+            <div className="rounded-xl bg-primary/10 p-2.5">
+              <Settings2 className="h-7 w-7 text-primary" />
+            </div>
+            Settings
+          </h1>
+          <p className="text-muted-foreground mt-1 ml-14">Manage your account, preferences, and application settings.</p>
+        </div>
       </div>
 
-      <div className="flex flex-col gap-8">
-        {/* Appearance Section */}
-        <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-          <div className="mb-6 border-b border-border pb-4">
-            <h2 className="text-xl font-semibold text-foreground">Appearance</h2>
-            <p className="text-sm text-muted-foreground mt-1">Customize how the application looks on your device.</p>
-          </div>
+      {/* Tabbed Navigation */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="mb-6 flex-wrap">
+          <TabsTrigger value="general" className="gap-1.5">
+            <Palette className="h-4 w-4" /> General
+          </TabsTrigger>
+          <TabsTrigger value="profile" className="gap-1.5">
+            <UserIcon className="h-4 w-4" /> Profile
+          </TabsTrigger>
+          <TabsTrigger value="notifications" className="gap-1.5">
+            <Bell className="h-4 w-4" /> Notifications
+          </TabsTrigger>
+          <TabsTrigger value="shortcuts" className="gap-1.5">
+            <Keyboard className="h-4 w-4" /> Shortcuts
+          </TabsTrigger>
+          <TabsTrigger value="about" className="gap-1.5">
+            <Info className="h-4 w-4" /> About
+          </TabsTrigger>
+        </TabsList>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <button
-              onClick={() => setTheme("light")}
-              className={cn(
-                "flex flex-col items-center justify-center gap-3 rounded-xl border p-6 transition-all hover:bg-secondary",
-                theme === "light"
-                  ? "border-primary bg-primary/5 text-primary"
-                  : "border-border bg-card text-muted-foreground"
-              )}
-            >
-              <div className={cn("rounded-full p-3", theme === "light" ? "bg-primary/20" : "bg-secondary")}>
-                <Sun className="h-6 w-6" />
-              </div>
-              <span className="font-medium">Light Mode</span>
-            </button>
-            <button
-              onClick={() => setTheme("dark")}
-              className={cn(
-                "flex flex-col items-center justify-center gap-3 rounded-xl border p-6 transition-all hover:bg-secondary",
-                theme === "dark"
-                  ? "border-primary bg-primary/5 text-primary"
-                  : "border-border bg-card text-muted-foreground"
-              )}
-            >
-              <div className={cn("rounded-full p-3", theme === "dark" ? "bg-primary/20" : "bg-secondary")}>
-                <Moon className="h-6 w-6" />
-              </div>
-              <span className="font-medium">Dark Mode</span>
-            </button>
-            <button
-              onClick={() => setTheme("system")}
-              className={cn(
-                "flex flex-col items-center justify-center gap-3 rounded-xl border p-6 transition-all hover:bg-secondary",
-                theme === "system"
-                  ? "border-primary bg-primary/5 text-primary"
-                  : "border-border bg-card text-muted-foreground"
-              )}
-            >
-              <div className={cn("rounded-full p-3", theme === "system" ? "bg-primary/20" : "bg-secondary")}>
-                <Monitor className="h-6 w-6" />
-              </div>
-              <span className="font-medium">System Preference</span>
-              <span className="text-xs text-muted-foreground absolute bottom-3">
-                (Currently: {resolvedTheme})
-              </span>
-            </button>
-          </div>
-        </section>
-
-        {/* Profile Section (Read-only stub) */}
-        <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-          <div className="mb-6 border-b border-border pb-4">
-            <h2 className="text-xl font-semibold text-foreground">Profile</h2>
-            <p className="text-sm text-muted-foreground mt-1">Your personal information and team affiliation.</p>
-          </div>
-
-          <div className="flex items-center gap-6">
-            {currentUser ? (
-              <>
-                <div
-                  className={cn(
-                    "flex h-24 w-24 items-center justify-center rounded-full text-4xl font-bold border-4 border-card shadow-sm text-white",
-                    getAvatarColor(currentUser.username)
-                  )}
-                >
-                  {formatUsername(currentUser.username).charAt(0).toUpperCase()}
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-3">
-                    {isEditing ? (
-                      <div className="flex items-center gap-2">
-                        <Input
-                          value={editUsername}
-                          onChange={(e) => setEditUsername(e.target.value)}
-                          className="h-8 text-lg font-bold w-48"
-                          autoFocus
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") handleSaveUsername();
-                            if (e.key === "Escape") {
-                              setIsEditing(false);
-                              setEditUsername(currentUser.username);
-                            }
-                          }}
-                        />
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8 text-green-500 hover:text-green-600 hover:bg-green-500/10"
-                          onClick={handleSaveUsername}
-                          disabled={isUpdating}
-                        >
-                          <Check className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-500/10"
-                          onClick={() => {
-                            setIsEditing(false);
-                            setEditUsername(currentUser.username);
-                          }}
-                          disabled={isUpdating}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <>
-                        <h3 className="text-2xl font-bold text-foreground">
-                          {formatUsername(currentUser.username)}
-                        </h3>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-6 w-6 text-muted-foreground hover:text-foreground"
-                          onClick={() => setIsEditing(true)}
-                        >
-                          <Pencil className="h-3 w-3" />
-                        </Button>
-                      </>
+        {/* ─── General Tab ─────────────────────────────────────── */}
+        <TabsContent value="general">
+          <div className="flex flex-col gap-6">
+            {/* Theme */}
+            <SettingsSection title="Appearance" description="Choose the visual theme for your workspace.">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 py-4">
+                {([
+                  { key: "light", label: "Light", icon: Sun, desc: "Clean and bright" },
+                  { key: "dark", label: "Dark", icon: Moon, desc: "Easy on the eyes" },
+                  { key: "system", label: "System", icon: Monitor, desc: `Currently: ${resolvedTheme}` },
+                ] as const).map(({ key, label, icon: Icon, desc }) => (
+                  <button
+                    key={key}
+                    onClick={() => setTheme(key)}
+                    className={cn(
+                      "group relative flex flex-col items-center gap-3 rounded-xl border p-6 transition-all duration-200",
+                      theme === key
+                        ? "border-primary bg-primary/5 shadow-md shadow-primary/10"
+                        : "border-border bg-card hover:bg-secondary/50 hover:border-border/80"
                     )}
-                  </div>
-                  <p className="text-muted-foreground mt-1 flex items-center gap-2">
-                    <UserIcon className="h-4 w-4" /> 
-                    <span className="font-mono text-xs opacity-70">#{currentUser.userId}</span>
-                    <span>•</span>
-                    {currentUser.team?.productOwnerUserId === currentUser.userId 
-                      ? "Product Owner" 
-                      : currentUser.team?.projectManagerUserId === currentUser.userId 
-                        ? "Project Manager" 
-                        : "Team Member"}
-                  </p>
-                  <div className="mt-3 inline-flex items-center rounded-full bg-secondary px-3 py-1 text-sm font-medium text-foreground">
-                    {currentUser.team?.teamName || "No Team Assigned"}
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="flex items-center gap-4 animate-pulse">
-                <div className="h-24 w-24 rounded-full bg-secondary" />
-                <div className="space-y-3">
-                  <div className="h-6 w-32 bg-secondary rounded" />
-                  <div className="h-4 w-24 bg-secondary rounded" />
-                  <div className="h-6 w-28 bg-secondary rounded-full" />
+                  >
+                    {theme === key && (
+                      <div className="absolute top-3 right-3">
+                        <CheckCircle2 className="h-4 w-4 text-primary" />
+                      </div>
+                    )}
+                    <div className={cn("rounded-full p-3 transition-colors", theme === key ? "bg-primary/20" : "bg-secondary group-hover:bg-secondary/80")}>
+                      <Icon className={cn("h-6 w-6", theme === key ? "text-primary" : "text-muted-foreground")} />
+                    </div>
+                    <div className="text-center">
+                      <span className={cn("font-medium text-sm", theme === key ? "text-primary" : "text-foreground")}>{label}</span>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">{desc}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </SettingsSection>
+
+            {/* Display Preferences */}
+            <SettingsSection title="Display" description="Customize how content is presented across the application.">
+              <SettingsRow icon={LayoutDashboard} title="Default Project View" description="Choose which view loads first when you open a project.">
+                <Select value={defaultView} onValueChange={(v) => setDefaultView(v || "board")}>
+                  <SelectTrigger className="w-40 h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {["board", "list", "table", "timeline"].map((v) => {
+                      const VIcon = viewIcons[v];
+                      return (
+                        <SelectItem key={v} value={v}>
+                          <span className="flex items-center gap-2">
+                            <VIcon className="h-3.5 w-3.5" />
+                            {v.charAt(0).toUpperCase() + v.slice(1)}
+                          </span>
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </SettingsRow>
+
+              <SettingsRow icon={Clock} title="Date Format" description="How dates are displayed throughout the app.">
+                <Select value={dateFormat} onValueChange={(v) => setDateFormat(v || "relative")}>
+                  <SelectTrigger className="w-40 h-9">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="relative">Relative (2d ago)</SelectItem>
+                    <SelectItem value="absolute">Absolute (Jul 16)</SelectItem>
+                    <SelectItem value="iso">ISO (2026-07-16)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </SettingsRow>
+
+              <SettingsRow icon={Globe} title="Timezone" description={`Currently: ${timezone}`}>
+                <Select value={timezone} onValueChange={(v) => setTimezone(v || timezone)}>
+                  <SelectTrigger className="w-52 h-9 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {[
+                      "Asia/Kolkata",
+                      "America/New_York",
+                      "America/Chicago",
+                      "America/Denver",
+                      "America/Los_Angeles",
+                      "Europe/London",
+                      "Europe/Berlin",
+                      "Asia/Tokyo",
+                      "Australia/Sydney",
+                      "Pacific/Auckland",
+                    ].map((tz) => (
+                      <SelectItem key={tz} value={tz}>{tz.replace("_", " ")}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </SettingsRow>
+
+              <SettingsRow title="Compact Mode" description="Reduce spacing and padding for denser information display.">
+                <ToggleSwitch checked={compactMode} onChange={setCompactMode} />
+              </SettingsRow>
+
+              <SettingsRow title="Animations" description="Enable smooth transitions and micro-animations.">
+                <ToggleSwitch checked={animationsEnabled} onChange={setAnimationsEnabled} />
+              </SettingsRow>
+            </SettingsSection>
+          </div>
+        </TabsContent>
+
+        {/* ─── Profile Tab ─────────────────────────────────────── */}
+        <TabsContent value="profile">
+          <div className="flex flex-col gap-6">
+            <SettingsSection title="Account" description="Your personal information and identity.">
+              <div className="py-6">
+                <div className="flex items-start gap-6">
+                  {currentUser ? (
+                    <>
+                      {/* Avatar */}
+                      <div className="relative group">
+                        <div
+                          className={cn(
+                            "flex h-24 w-24 items-center justify-center rounded-2xl text-4xl font-bold border-4 border-card shadow-lg text-white transition-transform group-hover:scale-105",
+                            getAvatarColor(currentUser.username)
+                          )}
+                        >
+                          {formatUsername(currentUser.username).charAt(0).toUpperCase()}
+                        </div>
+                      </div>
+
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3 mb-1">
+                          {isEditing ? (
+                            <div className="flex items-center gap-2">
+                              <Input
+                                value={editUsername}
+                                onChange={(e) => setEditUsername(e.target.value)}
+                                className="h-9 text-lg font-bold w-56"
+                                autoFocus
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") handleSaveUsername();
+                                  if (e.key === "Escape") {
+                                    setIsEditing(false);
+                                    setEditUsername(currentUser.username);
+                                  }
+                                }}
+                              />
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8 text-green-500 hover:text-green-600 hover:bg-green-500/10"
+                                onClick={handleSaveUsername}
+                                disabled={isUpdating}
+                              >
+                                <Check className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-500/10"
+                                onClick={() => {
+                                  setIsEditing(false);
+                                  setEditUsername(currentUser.username);
+                                }}
+                                disabled={isUpdating}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <>
+                              <h3 className="text-2xl font-bold text-foreground">
+                                {formatUsername(currentUser.username)}
+                              </h3>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                onClick={() => setIsEditing(true)}
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+
+                        <p className="text-muted-foreground text-sm flex items-center gap-2">
+                          <UserIcon className="h-4 w-4" />
+                          {currentUser.team?.productOwnerUserId === currentUser.userId
+                            ? "Product Owner"
+                            : currentUser.team?.projectManagerUserId === currentUser.userId
+                              ? "Project Manager"
+                              : "Team Member"}
+                          <span>•</span>
+                          <span className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium">
+                            {currentUser.team?.teamName || "No Team"}
+                          </span>
+                        </p>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex items-center gap-4 animate-pulse">
+                      <div className="h-24 w-24 rounded-2xl bg-secondary" />
+                      <div className="space-y-3">
+                        <div className="h-7 w-40 bg-secondary rounded" />
+                        <div className="h-4 w-28 bg-secondary rounded" />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
+            </SettingsSection>
+
+            {/* Account Details */}
+            {currentUser && (
+              <SettingsSection title="Account Details" description="Technical details about your account.">
+                <SettingsRow title="User ID" description="Your unique system identifier.">
+                  <button
+                    onClick={() => copyToClipboard(currentUser.userId, "userId")}
+                    className="flex items-center gap-2 rounded-lg bg-secondary px-3 py-1.5 text-xs font-mono text-muted-foreground hover:bg-secondary/80 transition-colors"
+                  >
+                    {currentUser.userId.substring(0, 12)}…
+                    {copiedField === "userId" ? (
+                      <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                    ) : (
+                      <Copy className="h-3.5 w-3.5" />
+                    )}
+                  </button>
+                </SettingsRow>
+
+                {currentUser.orgId && (
+                  <SettingsRow title="Organization ID" description="Your current organization's identifier.">
+                    <button
+                      onClick={() => copyToClipboard(currentUser.orgId!, "orgId")}
+                      className="flex items-center gap-2 rounded-lg bg-secondary px-3 py-1.5 text-xs font-mono text-muted-foreground hover:bg-secondary/80 transition-colors"
+                    >
+                      {currentUser.orgId.substring(0, 12)}…
+                      {copiedField === "orgId" ? (
+                        <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                      ) : (
+                        <Copy className="h-3.5 w-3.5" />
+                      )}
+                    </button>
+                  </SettingsRow>
+                )}
+
+                {currentUser.teamId && (
+                  <SettingsRow title="Team ID" description="Your current team assignment.">
+                    <button
+                      onClick={() => copyToClipboard(currentUser.teamId!, "teamId")}
+                      className="flex items-center gap-2 rounded-lg bg-secondary px-3 py-1.5 text-xs font-mono text-muted-foreground hover:bg-secondary/80 transition-colors"
+                    >
+                      {currentUser.teamId.substring(0, 12)}…
+                      {copiedField === "teamId" ? (
+                        <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                      ) : (
+                        <Copy className="h-3.5 w-3.5" />
+                      )}
+                    </button>
+                  </SettingsRow>
+                )}
+              </SettingsSection>
             )}
-          </div>
-        </section>
 
-        {/* About Section */}
-        <section className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-          <div className="mb-6 border-b border-border pb-4 flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-semibold text-foreground">About LegionTask</h2>
-              <p className="text-sm text-muted-foreground mt-1">Application details and tech stack.</p>
-            </div>
-            <Code2 className="h-8 w-8 text-muted-foreground" />
+            {/* Danger Zone */}
+            <SettingsSection title="Session" description="Manage your authentication session.">
+              <SettingsRow icon={LogOut} title="Sign Out" description="Sign out of your account on this device.">
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="rounded-lg"
+                  onClick={() => signOut({ redirectUrl: "/" })}
+                >
+                  <LogOut className="h-4 w-4 mr-2" /> Sign Out
+                </Button>
+              </SettingsRow>
+            </SettingsSection>
           </div>
+        </TabsContent>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 text-sm">
-            <div className="flex flex-col gap-1">
-              <span className="text-muted-foreground">Version</span>
-              <span className="font-medium text-foreground">1.0.0 (Beta)</span>
-            </div>
-            <div className="flex flex-col gap-1">
-              <span className="text-muted-foreground">Frontend</span>
-              <span className="font-medium text-foreground">Next.js 15, Tailwind CSS v4, Redux Toolkit</span>
-            </div>
-            <div className="flex flex-col gap-1">
-              <span className="text-muted-foreground">Backend</span>
-              <span className="font-medium text-foreground">Node.js, Express, REST API</span>
-            </div>
-            <div className="flex flex-col gap-1">
-              <span className="text-muted-foreground">Database</span>
-              <span className="font-medium text-foreground">PostgreSQL, Prisma ORM</span>
-            </div>
+        {/* ─── Notifications Tab ───────────────────────────────── */}
+        <TabsContent value="notifications">
+          <div className="flex flex-col gap-6">
+            <SettingsSection title="Task Notifications" description="Choose which task events trigger notifications.">
+              <SettingsRow icon={Bell} title="Task Assigned to Me" description="Get notified when a task is assigned to you.">
+                <ToggleSwitch checked={notifTaskAssigned} onChange={setNotifTaskAssigned} />
+              </SettingsRow>
+              <SettingsRow icon={Bell} title="Comments on My Tasks" description="Get notified when someone comments on a task you're involved in.">
+                <ToggleSwitch checked={notifCommentAdded} onChange={setNotifCommentAdded} />
+              </SettingsRow>
+              <SettingsRow icon={Bell} title="Status Changes" description="Get notified when a task status is updated.">
+                <ToggleSwitch checked={notifStatusChange} onChange={setNotifStatusChange} />
+              </SettingsRow>
+              <SettingsRow icon={Clock} title="Due Date Reminders" description="Receive reminders before task deadlines.">
+                <ToggleSwitch checked={notifDueDateReminder} onChange={setNotifDueDateReminder} />
+              </SettingsRow>
+            </SettingsSection>
+
+            <SettingsSection title="Sound & Alerts" description="Configure how notifications are delivered.">
+              <SettingsRow icon={notifSoundEnabled ? Bell : BellOff} title="Notification Sound" description="Play a sound when you receive a notification.">
+                <ToggleSwitch checked={notifSoundEnabled} onChange={setNotifSoundEnabled} />
+              </SettingsRow>
+            </SettingsSection>
           </div>
-        </section>
-      </div>
+        </TabsContent>
+
+        {/* ─── Keyboard Shortcuts Tab ──────────────────────────── */}
+        <TabsContent value="shortcuts">
+          <div className="flex flex-col gap-6">
+            <SettingsSection title="Navigation" description="Quickly jump between views.">
+              <SettingsRow title="Go to Dashboard"><KbdBadge keys={["G", "D"]} /></SettingsRow>
+              <SettingsRow title="Go to Projects"><KbdBadge keys={["G", "P"]} /></SettingsRow>
+              <SettingsRow title="Go to Timeline"><KbdBadge keys={["G", "T"]} /></SettingsRow>
+              <SettingsRow title="Go to Search"><KbdBadge keys={["/"]} /></SettingsRow>
+              <SettingsRow title="Go to Settings"><KbdBadge keys={["G", "S"]} /></SettingsRow>
+            </SettingsSection>
+
+            <SettingsSection title="Actions" description="Perform common actions quickly.">
+              <SettingsRow title="Create New Task"><KbdBadge keys={["C"]} /></SettingsRow>
+              <SettingsRow title="Toggle Dark/Light Mode"><KbdBadge keys={["Ctrl", "Shift", "L"]} /></SettingsRow>
+              <SettingsRow title="Toggle Sidebar"><KbdBadge keys={["["]} /></SettingsRow>
+              <SettingsRow title="Close Modal / Cancel"><KbdBadge keys={["Esc"]} /></SettingsRow>
+              <SettingsRow title="Save / Submit"><KbdBadge keys={["Ctrl", "Enter"]} /></SettingsRow>
+            </SettingsSection>
+
+            <SettingsSection title="Board View" description="Keyboard shortcuts specific to the Kanban board.">
+              <SettingsRow title="Switch to Board View"><KbdBadge keys={["Alt", "1"]} /></SettingsRow>
+              <SettingsRow title="Switch to List View"><KbdBadge keys={["Alt", "2"]} /></SettingsRow>
+              <SettingsRow title="Switch to Table View"><KbdBadge keys={["Alt", "3"]} /></SettingsRow>
+              <SettingsRow title="Switch to Timeline View"><KbdBadge keys={["Alt", "4"]} /></SettingsRow>
+            </SettingsSection>
+          </div>
+        </TabsContent>
+
+        {/* ─── About Tab ───────────────────────────────────────── */}
+        <TabsContent value="about">
+          <div className="flex flex-col gap-6">
+            <SettingsSection title="About LegionTask" description="Application details, version, and technology.">
+              <div className="py-4">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="rounded-2xl bg-primary/10 p-4">
+                    <Code2 className="h-8 w-8 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-foreground">LegionTask</h3>
+                    <p className="text-sm text-muted-foreground">Full-stack project management platform</p>
+                  </div>
+                  <div className="ml-auto">
+                    <span className="inline-flex items-center rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                      v1.0.0 Beta
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {[
+                    { label: "Frontend", value: "Next.js 15 · React 19 · Tailwind v4", icon: "🎨" },
+                    { label: "Backend", value: "Express · Node.js · REST API", icon: "⚡" },
+                    { label: "Database", value: "PostgreSQL · Prisma ORM · Supabase", icon: "🗃️" },
+                    { label: "Authentication", value: "Clerk · Multi-tenant", icon: "🔐" },
+                    { label: "State Management", value: "Redux Toolkit · RTK Query", icon: "📦" },
+                    { label: "UI Components", value: "Shadcn · Lucide · Framer Motion", icon: "✨" },
+                  ].map(({ label, value, icon }) => (
+                    <div key={label} className="flex items-start gap-3 rounded-xl border border-border/50 bg-secondary/30 p-4">
+                      <span className="text-lg">{icon}</span>
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</p>
+                        <p className="text-sm font-medium text-foreground mt-0.5">{value}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </SettingsSection>
+
+            <SettingsSection title="Links" description="Helpful resources and documentation.">
+              <SettingsRow title="Source Code" description="View the project on GitHub.">
+                <a
+                  href="https://github.com/lakshyarawat1/legion-task"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 rounded-lg bg-secondary px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary/80 transition-colors"
+                >
+                  GitHub <ExternalLink className="h-3 w-3" />
+                </a>
+              </SettingsRow>
+              <SettingsRow title="Report a Bug" description="Found an issue? Let us know.">
+                <a
+                  href="https://github.com/lakshyarawat1/legion-task/issues/new"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 rounded-lg bg-secondary px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary/80 transition-colors"
+                >
+                  Open Issue <ExternalLink className="h-3 w-3" />
+                </a>
+              </SettingsRow>
+            </SettingsSection>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
