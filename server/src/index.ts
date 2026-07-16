@@ -1,5 +1,7 @@
-import express from "express";
 import dotenv from "dotenv";
+dotenv.config();
+
+import express from "express";
 import bodyParser from "body-parser";
 import cors from "cors";
 import helmet from "helmet";
@@ -13,8 +15,6 @@ import commentRoutes from "./routes/CommentRoutes";
 import attachmentRoutes from "./routes/AttachmentRoutes";
 import orgRoutes from "./routes/OrgRoutes";
 import { clerkMiddleware } from "@clerk/express";
-
-dotenv.config();
 
 const app = express();
 

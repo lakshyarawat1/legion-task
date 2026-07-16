@@ -70,7 +70,21 @@ export const getUserById = async (
 export const updateUser = async (req: Request, res: Response): Promise<void> => {
   const { userId } = req.params as { userId: string };
   const { username } = req.body;
+  const currentUser = (req as any).user;
+
   try {
+    const user = await prisma.user.findFirst({
+      where: {
+        userId: userId,
+        orgId: currentUser.orgId,
+      },
+    });
+
+    if (!user) {
+      res.status(404).json({ error: "User not found in your organization." });
+      return;
+    }
+
     const updatedUser = await prisma.user.update({
       where: { userId },
       data: { username },

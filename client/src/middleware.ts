@@ -4,7 +4,7 @@ const isPublicRoute = createRouteMatcher(['/', '/pricing(.*)', '/sign-in(.*)', '
 
 export default clerkMiddleware(async (auth, request) => {
   const mockUser = request.cookies.get("mock_user_id");
-  if (mockUser) {
+  if (process.env.NODE_ENV !== "production" && mockUser) {
     return; // Bypass authentication check during E2E testing
   }
   if (!isPublicRoute(request)) {

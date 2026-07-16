@@ -251,21 +251,22 @@ export const deleteTask = async (
       return;
     }
 
-    await prisma.taskAssignment.deleteMany({
-      where: { taskId: taskId },
-    });
-    await prisma.attachment.deleteMany({
-      where: { taskId: taskId },
-    });
-    await prisma.comment.deleteMany({
-      where: { taskId: taskId },
-    });
-
-    await prisma.task.delete({
-      where: {
-        id: taskId,
-      },
-    });
+    await prisma.$transaction([
+      prisma.taskAssignment.deleteMany({
+        where: { taskId: taskId },
+      }),
+      prisma.attachment.deleteMany({
+        where: { taskId: taskId },
+      }),
+      prisma.comment.deleteMany({
+        where: { taskId: taskId },
+      }),
+      prisma.task.delete({
+        where: {
+          id: taskId,
+        },
+      }),
+    ]);
     res.status(204).send();
   } catch (err) {
     res

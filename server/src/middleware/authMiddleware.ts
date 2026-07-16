@@ -4,7 +4,7 @@ import prisma from "../prisma";
 
 export const requireAuthMiddleware = (req: Request, res: Response, next: NextFunction): void => {
   const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith("Bearer mock_")) {
+  if (process.env.NODE_ENV !== "production" && authHeader && authHeader.startsWith("Bearer mock_")) {
     next();
     return;
   }
@@ -29,7 +29,7 @@ export const requireLocalUser = async (
 ): Promise<void> => {
   try {
     const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith("Bearer mock_")) {
+    if (process.env.NODE_ENV !== "production" && authHeader && authHeader.startsWith("Bearer mock_")) {
       const mockUserId = authHeader.substring(12); // Extracted mock user ID
       let user = await prisma.user.findUnique({
         where: { clerkUserId: mockUserId },
@@ -72,8 +72,9 @@ export const requireLocalUser = async (
 
     (req as any).user = user;
     next();
-  } catch (error) {
-    res.status(500).json({ message: "Error verifying local user" });
+  } catch (error: any) {
+    console.error("DEBUG requireLocalUser error:", error);
+    res.status(500).json({ message: "Error verifying local user", error: error.message || String(error) });
   }
 };
 

@@ -12,42 +12,42 @@ export const search = async (req: Request, res: Response): Promise<void> => {
   }
 
   try {
-    const tasks = await prisma.task.findMany({
-      where: {
-        project: {
-          orgId: orgId,
+    const [tasks, projects, users] = await Promise.all([
+      prisma.task.findMany({
+        where: {
+          project: {
+            orgId: orgId,
+          },
+          OR: [
+            { title: { contains: query, mode: "insensitive" } },
+            { description: { contains: query, mode: "insensitive" } },
+          ],
         },
-        OR: [
-          { title: { contains: query, mode: "insensitive" } },
-          { description: { contains: query, mode: "insensitive" } },
-        ],
-      },
-      include: {
-        project: true,
-        author: true,
-        assignee: true,
-      },
-    });
-
-    const projects = await prisma.project.findMany({
-      where: {
-        orgId: orgId,
-        OR: [
-          { name: { contains: query, mode: "insensitive" } },
-          { description: { contains: query, mode: "insensitive" } },
-        ],
-      },
-    });
-
-    const users = await prisma.user.findMany({
-      where: {
-        orgId: orgId,
-        username: { contains: query, mode: "insensitive" },
-      },
-      include: {
-        team: true,
-      },
-    });
+        include: {
+          project: true,
+          author: true,
+          assignee: true,
+        },
+      }),
+      prisma.project.findMany({
+        where: {
+          orgId: orgId,
+          OR: [
+            { name: { contains: query, mode: "insensitive" } },
+            { description: { contains: query, mode: "insensitive" } },
+          ],
+        },
+      }),
+      prisma.user.findMany({
+        where: {
+          orgId: orgId,
+          username: { contains: query, mode: "insensitive" },
+        },
+        include: {
+          team: true,
+        },
+      }),
+    ]);
 
     res.json({ tasks, projects, users });
   } catch (err) {

@@ -85,7 +85,21 @@ export const createTeam = async (req: Request, res: Response): Promise<void> => 
 
 export const deleteTeam = async (req: Request, res: Response): Promise<void> => {
   const { teamId } = req.params as { teamId: string };
+  const currentUser = (req as any).user;
+
   try {
+    const team = await prisma.team.findFirst({
+      where: {
+        id: teamId,
+        orgId: currentUser.orgId,
+      },
+    });
+
+    if (!team) {
+      res.status(404).json({ error: "Team not found in your organization." });
+      return;
+    }
+
     await prisma.$transaction(async (tx) => {
       // 1. Delete project-team relations
       await tx.projectTeam.deleteMany({
@@ -110,7 +124,21 @@ export const deleteTeam = async (req: Request, res: Response): Promise<void> => 
 export const updateTeam = async (req: Request, res: Response): Promise<void> => {
   const { teamId } = req.params as { teamId: string };
   const { teamName, productOwnerUserId, projectManagerUserId } = req.body;
+  const currentUser = (req as any).user;
+
   try {
+    const team = await prisma.team.findFirst({
+      where: {
+        id: teamId,
+        orgId: currentUser.orgId,
+      },
+    });
+
+    if (!team) {
+      res.status(404).json({ error: "Team not found in your organization." });
+      return;
+    }
+
     const updatedTeam = await prisma.team.update({
       where: { id: teamId },
       data: {
@@ -136,7 +164,33 @@ export const updateTeam = async (req: Request, res: Response): Promise<void> => 
 export const addTeamMember = async (req: Request, res: Response): Promise<void> => {
   const { teamId } = req.params as { teamId: string };
   const { userId } = req.body as { userId: string };
+  const currentUser = (req as any).user;
+
   try {
+    const team = await prisma.team.findFirst({
+      where: {
+        id: teamId,
+        orgId: currentUser.orgId,
+      },
+    });
+
+    if (!team) {
+      res.status(404).json({ error: "Team not found in your organization." });
+      return;
+    }
+
+    const targetUser = await prisma.user.findFirst({
+      where: {
+        userId,
+        orgId: currentUser.orgId,
+      },
+    });
+
+    if (!targetUser) {
+      res.status(404).json({ error: "User not found in your organization." });
+      return;
+    }
+
     const updatedUser = await prisma.user.update({
       where: { userId },
       data: { teamId },
@@ -149,10 +203,28 @@ export const addTeamMember = async (req: Request, res: Response): Promise<void> 
 
 export const removeTeamMember = async (req: Request, res: Response): Promise<void> => {
   const { teamId, userId } = req.params as { teamId: string; userId: string };
+  const currentUser = (req as any).user;
+
   try {
-    const user = await prisma.user.findUnique({
-      where: { userId },
+    const team = await prisma.team.findFirst({
+      where: {
+        id: teamId,
+        orgId: currentUser.orgId,
+      },
     });
+
+    if (!team) {
+      res.status(404).json({ error: "Team not found in your organization." });
+      return;
+    }
+
+    const user = await prisma.user.findFirst({
+      where: {
+        userId,
+        orgId: currentUser.orgId,
+      },
+    });
+
     if (!user || user.teamId !== teamId) {
       res.status(400).json({ error: "User is not a member of this team." });
       return;
