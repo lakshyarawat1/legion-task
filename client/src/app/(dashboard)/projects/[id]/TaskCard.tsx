@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { useDrag } from "react-dnd";
 import { Task } from "@/state/api";
-import { format } from "date-fns";
+import { format, isValid } from "date-fns";
 import { MessageSquareMore } from "lucide-react";
 import Image from "next/image";
 import { motion } from "framer-motion";
@@ -28,8 +28,11 @@ const TaskCard = ({ task }: TaskCardProps) => {
 
   const taskTagsSplit = task.tags ? task.tags.split(",") : [];
 
-  const formattedStartDate = task.startDate ? format(new Date(task.startDate), "P") : "";
-  const formattedDueDate = task.dueDate ? format(new Date(task.dueDate), "P") : "";
+  const startDateObj = task.startDate ? new Date(task.startDate) : null;
+  const formattedStartDate = startDateObj && isValid(startDateObj) ? format(startDateObj, "P") : "";
+
+  const dueDateObj = task.dueDate ? new Date(task.dueDate) : null;
+  const formattedDueDate = dueDateObj && isValid(dueDateObj) ? format(dueDateObj, "P") : "";
 
   const numberOfComments = (task.comments && task.comments.length) || 0;
 

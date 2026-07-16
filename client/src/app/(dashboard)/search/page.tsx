@@ -1,19 +1,27 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { Search as SearchIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useSearchQuery } from "@/state/api";
 import EmptyState from "@/app/(components)/EmptyState/EmptyState";
 import { StatusBadge, PriorityBadge } from "@/app/(components)/Badges/Badges";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 
-export default function SearchPage() {
+function Search() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  useEffect(() => {
+    const q = searchParams.get("q");
+    if (q) {
+      setSearchTerm(q);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -170,5 +178,17 @@ export default function SearchPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function SearchPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-full w-full items-center justify-center p-8">
+        <div className="text-muted-foreground animate-pulse text-lg">Loading search...</div>
+      </div>
+    }>
+      <Search />
+    </Suspense>
   );
 }
