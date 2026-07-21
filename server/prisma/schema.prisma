@@ -10,16 +10,29 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Organization {
+  id         String    @id @default(uuid())
+  name       String
+  inviteCode String    @unique
+  users      User[]
+  teams      Team[]
+  projects   Project[]
+  notifications Notification[]
 }
 
 model User {
-  userId            Int     @id @default(autoincrement())
-  cognitoId         String  @unique
-  username          String  @unique
+  userId            String  @id @default(uuid())
+  clerkUserId       String  @unique
+  username          String
   profilePictureUrl String?
-  teamId            Int?
+  teamId            String?
+  orgId             String?
+  role              String  @default("MEMBER")
 
   authoredTasks   Task[]           @relation("TaskAuthor")
   assignedTasks   Task[]           @relation("TaskAssignee")
@@ -27,37 +40,58 @@ model User {
   attachments     Attachment[]
   comments        Comment[]
   team            Team?            @relation(fields: [teamId], references: [id])
+  organization    Organization?    @relation(fields: [orgId], references: [id])
+
+  notifications      Notification[]
+  actedNotifications Notification[] @relation("NotificationActor")
+
+  @@index([orgId])
+  @@index([teamId])
 }
 
 model Team {
-  id                   Int           @id @default(autoincrement())
+  id                   String        @id @default(uuid())
   teamName             String
-  productOwnerUserId   Int?
-  projectManagerUserId Int?
+  productOwnerUserId   String?
+  projectManagerUserId String?
+  orgId                String?
   projectTeams         ProjectTeam[]
   user                 User[]
+  organization         Organization? @relation(fields: [orgId], references: [id])
+
+  @@index([orgId])
 }
 
 model Project {
-  id           Int           @id @default(autoincrement())
+  id           String        @id @default(uuid())
   name         String
+  prefix       String
   description  String?
   startDate    DateTime?
   endDate      DateTime?
+  orgId        String?
   tasks        Task[]
   projectTeams ProjectTeam[]
+  organization Organization? @relation(fields: [orgId], references: [id])
+
+  @@unique([orgId, prefix])
+  @@index([orgId])
 }
 
 model ProjectTeam {
-  id        Int     @id @default(autoincrement())
-  teamId    Int
-  projectId Int
+  id        String  @id @default(uuid())
+  teamId    String
+  projectId String
   team      Team    @relation(fields: [teamId], references: [id])
   project   Project @relation(fields: [projectId], references: [id])
+
+  @@index([teamId])
+  @@index([projectId])
 }
 
 model Task {
-  id             Int       @id @default(autoincrement())
+  id             String    @id @default(uuid())
+  taskNumber     Int
   title          String
   description    String?
   status         String?
@@ -66,9 +100,11 @@ model Task {
   startDate      DateTime?
   dueDate        DateTime?
   points         Int?
-  projectId      Int
-  authorUserId   Int
-  assignedUserId Int?
+  projectId      String
+  authorUserId   String
+  assignedUserId String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @default(now()) @updatedAt
 
   project         Project          @relation(fields: [projectId], references: [id])
   author          User             @relation("TaskAuthor", fields: [authorUserId], references: [userId])
@@ -76,34 +112,79 @@ model Task {
   taskAssignments TaskAssignment[]
   attachments     Attachment[]
   comments        Comment[]
+
+  @@unique([projectId, taskNumber])
+  @@index([projectId])
+  @@index([authorUserId])
+  @@index([assignedUserId])
 }
 
 model TaskAssignment {
-  id     Int @id @default(autoincrement())
-  userId Int
-  taskId Int
+  id     String @id @default(uuid())
+  userId String
+  taskId String
 
   user User @relation(fields: [userId], references: [userId])
   task Task @relation(fields: [taskId], references: [id])
+
+  @@index([userId])
+  @@index([taskId])
 }
 
 model Attachment {
-  id           Int     @id @default(autoincrement())
+  id           String  @id @default(uuid())
   fileURL      String
   fileName     String?
-  taskId       Int
-  uploadedById Int
+  taskId       String
+  uploadedById String
 
   task       Task @relation(fields: [taskId], references: [id])
   uploadedBy User @relation(fields: [uploadedById], references: [userId])
+
+  @@index([taskId])
+  @@index([uploadedById])
 }
 
 model Comment {
-  id     Int    @id @default(autoincrement())
+  id     String @id @default(uuid())
   text   String
-  taskId Int
-  userId Int
+  taskId String
+  userId String
+  createdAt DateTime @default(now())
 
   task Task @relation(fields: [taskId], references: [id])
   user User @relation(fields: [userId], references: [userId])
+
+  @@index([taskId])
+  @@index([userId])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  type      String   // e.g., "TASK_ASSIGNED", "COMMENT_ADDED", "STATUS_CHANGED", "TEAM_ADDED"
+  title     String   // Short human-readable title
+  message   String   // Detailed description of the event
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  readAt    DateTime?
+
+  // The user who receives this notification
+  userId    String
+  user      User     @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  // The user who triggered the notification (optional — system events have no actor)
+  actorId   String?
+  actor     User?    @relation("NotificationActor", fields: [actorId], references: [userId], onDelete: SetNull)
+
+  // Polymorphic reference to the source entity
+  resourceType String?  // "TASK", "PROJECT", "COMMENT", "TEAM"
+  resourceId   String?  // UUID of the referenced entity
+
+  // Organization scoping
+  orgId     String?
+  organization Organization? @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+  @@index([orgId])
 }

@@ -1,0 +1,162 @@
+"use client";
+
+import React from "react";
+import { motion } from "framer-motion";
+import Link from "next/link";
+import { ArrowRight, Layout, Users, Zap } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
+export default function LandingPage() {
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: 0.2 },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { type: "spring", stiffness: 100, damping: 10 },
+    },
+  };
+
+  return (
+    <div className="min-h-screen bg-background overflow-hidden relative selection:bg-primary/30">
+      {/* Background Gradients */}
+      <div className="absolute top-0 -left-4 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-[128px] opacity-30 animate-blob" />
+      <div className="absolute top-0 -right-4 w-72 h-72 bg-blue-500 rounded-full mix-blend-multiply filter blur-[128px] opacity-30 animate-blob animation-delay-2000" />
+      <div className="absolute -bottom-8 left-20 w-72 h-72 bg-emerald-500 rounded-full mix-blend-multiply filter blur-[128px] opacity-30 animate-blob animation-delay-4000" />
+
+      {/* Navbar Placeholder */}
+      <nav className="relative z-10 w-full flex items-center justify-between px-8 py-6 max-w-7xl mx-auto">
+        <div className="flex items-center gap-2">
+          <div className="h-10 w-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
+            <span className="text-primary-foreground font-bold text-lg">LT</span>
+          </div>
+          <span className="font-bold text-xl tracking-tight text-foreground">LegionTask</span>
+        </div>
+        <div className="flex items-center gap-4">
+          <Link href="/dashboard">
+            <Button variant="ghost" className="hidden sm:flex text-muted-foreground hover:text-foreground">
+              Sign In
+            </Button>
+          </Link>
+          <Link href="/dashboard">
+            <Button className="rounded-full px-6 shadow-lg hover:shadow-primary/25 transition-all">
+              Get Started
+            </Button>
+          </Link>
+        </div>
+      </nav>
+
+      <main className="relative z-10 max-w-7xl mx-auto px-8 pt-20 pb-32">
+        {/* Hero Section */}
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+          className="flex flex-col items-center text-center space-y-8"
+        >
+          <motion.div variants={itemVariants} className="inline-flex items-center rounded-full border border-primary/20 bg-primary/10 px-4 py-1.5 text-sm font-medium text-primary backdrop-blur-sm">
+            <span className="flex h-2 w-2 rounded-full bg-primary mr-2 animate-pulse"></span>
+            LegionTask 2.0 is now live
+          </motion.div>
+
+          <motion.h1 variants={itemVariants} className="text-5xl md:text-7xl font-extrabold tracking-tight text-foreground max-w-4xl leading-[1.1]">
+            Manage your team&apos;s work with{" "}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-purple-500">
+              effortless clarity.
+            </span>
+          </motion.h1>
+
+          <motion.p variants={itemVariants} className="text-lg md:text-xl text-muted-foreground max-w-2xl">
+            The premium project management tool designed for modern teams. Track tasks, balance workloads, and ship faster in a beautiful, distraction-free environment.
+          </motion.p>
+
+          <motion.div variants={itemVariants} className="flex flex-col sm:flex-row items-center gap-4 pt-4">
+            <Link href="/dashboard">
+              <Button size="lg" className="rounded-full px-8 h-14 text-base shadow-xl hover:shadow-primary/30 transition-all hover:-translate-y-1 group">
+                Go to Dashboard
+                <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+              </Button>
+            </Link>
+          </motion.div>
+
+          {/* Hero Image/Mockup */}
+          <motion.div variants={itemVariants} className="w-full max-w-5xl mt-20 relative">
+            <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent z-10" />
+            <div className="rounded-2xl border border-border bg-card/50 backdrop-blur-3xl shadow-2xl overflow-hidden p-2">
+              <div className="rounded-xl overflow-hidden border border-border/50 bg-background relative aspect-[16/9] flex items-center justify-center">
+                {/* Mock UI Representation */}
+                <div className="absolute inset-0 flex flex-col">
+                  <div className="h-12 border-b border-border flex items-center px-4 gap-2">
+                    <div className="flex gap-1.5">
+                      <div className="w-3 h-3 rounded-full bg-red-400" />
+                      <div className="w-3 h-3 rounded-full bg-amber-400" />
+                      <div className="w-3 h-3 rounded-full bg-green-400" />
+                    </div>
+                  </div>
+                  <div className="flex-1 flex p-6 gap-6 overflow-hidden">
+                    {/* Mock Columns */}
+                    {[1, 2, 3].map((col) => (
+                      <div key={col} className="flex-1 rounded-xl bg-secondary/50 flex flex-col gap-3 p-3">
+                        <div className="h-6 w-24 bg-foreground/10 rounded-md mb-2" />
+                        {[1, 2].map((card) => (
+                          <div key={card} className="h-24 w-full bg-card rounded-lg border border-border shadow-sm p-4 flex flex-col justify-between">
+                            <div className="h-4 w-3/4 bg-foreground/10 rounded" />
+                            <div className="flex justify-between items-center">
+                              <div className="h-6 w-16 bg-blue-500/20 rounded-full" />
+                              <div className="w-6 h-6 rounded-full bg-foreground/10" />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+
+        {/* Feature Highlights */}
+        <div className="mt-32 grid md:grid-cols-3 gap-8">
+          <FeatureCard 
+            icon={<Layout className="h-8 w-8 text-blue-500" />}
+            title="Beautiful Kanban Boards"
+            description="Visualize your work effortlessly. Drag and drop tasks with buttery smooth animations."
+          />
+          <FeatureCard 
+            icon={<Users className="h-8 w-8 text-purple-500" />}
+            title="Team Collaboration"
+            description="Built for teams. Assign tasks, leave comments, and share attachments instantly."
+          />
+          <FeatureCard 
+            icon={<Zap className="h-8 w-8 text-emerald-500" />}
+            title="Lightning Fast"
+            description="No loading spinners. Optimistic UI updates make everything feel instantaneous."
+          />
+        </div>
+      </main>
+    </div>
+  );
+}
+
+function FeatureCard({ icon, title, description }: { icon: React.ReactNode, title: string, description: string }) {
+  return (
+    <motion.div 
+      whileHover={{ y: -5 }}
+      className="p-8 rounded-3xl border border-border bg-card/40 backdrop-blur-sm hover:shadow-xl transition-all hover:bg-card/60"
+    >
+      <div className="h-14 w-14 rounded-2xl bg-secondary/50 flex items-center justify-center mb-6">
+        {icon}
+      </div>
+      <h3 className="text-xl font-bold text-foreground mb-3">{title}</h3>
+      <p className="text-muted-foreground leading-relaxed">{description}</p>
+    </motion.div>
+  );
+}
