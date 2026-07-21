@@ -81,6 +81,9 @@ const TaskCard = ({ task }: TaskCardProps) => {
       <div className="mb-2 flex items-start justify-between">
         <div className="flex flex-1 flex-wrap items-center gap-2">
           {task.priority && <PriorityTag priority={task.priority} />}
+          <div className="text-xs font-semibold text-blue-500 px-2 py-1 bg-blue-500/10 rounded">
+            {task.displayId || task.id.substring(0,8)}
+          </div>
           <div className="flex gap-2">
             {taskTagsSplit.map((tag) => (
               <div key={tag} className="rounded-full bg-secondary px-2 py-1 text-xs text-foreground">

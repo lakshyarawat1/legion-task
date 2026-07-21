@@ -9,6 +9,7 @@ export interface User {
   teamId?: string;
   team?: Team;
   orgId?: string;
+  role?: string;
   organization?: any;
   authoredTasks?: Task[];
   assignedTasks?: Task[];
@@ -26,6 +27,7 @@ export interface Team {
 export interface Project {
   id: string;
   name: string;
+  prefix?: string;
   description?: string;
   startDate?: string;
   endDate?: string;
@@ -56,11 +58,14 @@ export interface Comment {
   text: string;
   taskId: string;
   userId: string;
+  createdAt?: string;
   user?: User;
 }
 
 export interface Task {
   id: string;
+  taskNumber?: number;
+  displayId?: string;
   title: string;
   description?: string;
   status?: string;
@@ -72,6 +77,8 @@ export interface Task {
   projectId: string;
   authorUserId: string;
   assignedUserId?: string;
+  createdAt?: string;
+  updatedAt?: string;
 
   author?: User;
   assignee?: User;
@@ -84,6 +91,44 @@ export interface SearchResults {
   tasks: Task[];
   projects: Project[];
   users: User[];
+}
+
+export interface Notification {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
+  readAt?: string;
+  actor?: {
+    userId: string;
+    username: string;
+    profilePictureUrl?: string;
+  };
+  resourceType?: string;
+  resourceId?: string;
+}
+
+export interface NotificationResponse {
+  notifications: Notification[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+  unreadCount: number;
+}
+
+export interface PaginatedComments {
+  comments: Comment[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
 }
 
 export const api = createApi({
@@ -119,7 +164,7 @@ export const api = createApi({
     },
   }),
   reducerPath: "api",
-  tagTypes: ["Tasks", "Projects", "Users", "Teams", "Comments", "Attachments", "Organizations"],
+  tagTypes: ["Tasks", "Projects", "Users", "Teams", "Comments", "Attachments", "Organizations", "Notifications"],
   endpoints: (build) => ({
     // ── Projects ──────────────────────────────────────────────
     getProjects: build.query<Project[], void>({
@@ -273,6 +318,29 @@ export const api = createApi({
       invalidatesTags: (result, error, { userId }) => [{ type: "Users", id: userId }, { type: "Users", id: "LIST" }, "Organizations"],
     }),
 
+    // Dev Endpoints
+    getDevUsers: build.query<User[], { orgId?: string }>({
+      query: ({ orgId }) => `dev/users${orgId ? `?orgId=${orgId}` : ''}`,
+      providesTags: ["Users"],
+    }),
+    createDevUser: build.mutation<User, { username: string; role: string; orgId?: string; teamId?: string }>({
+      query: (body) => ({
+        url: `dev/users`,
+        method: "POST",
+        body,
+      }),
+      invalidatesTags: ["Users"],
+    }),
+    updateDevUserRole: build.mutation<User, { userId: string; role: string }>({
+      query: ({ userId, role }) => ({
+        url: `dev/users/${userId}/role`,
+        method: "PATCH",
+        body: { role },
+      }),
+      invalidatesTags: ["Users"],
+    }),
+
+
     // ── Teams ─────────────────────────────────────────────────
     getTeams: build.query<Team[], void>({
       query: () => "teams",
@@ -369,13 +437,23 @@ export const api = createApi({
             ]
           : [{ type: "Comments", id: "LIST" }],
     }),
+    getPaginatedComments: build.query<PaginatedComments, { taskId: string; page?: number; limit?: number; order?: string }>({
+      query: ({ taskId, page = 1, limit = 20, order = "asc" }) =>
+        `comments?taskId=${taskId}&page=${page}&limit=${limit}&order=${order}`,
+      providesTags: (result, error, { taskId }) => [
+        { type: "Comments", id: taskId },
+      ],
+    }),
     createComment: build.mutation<Comment, Partial<Comment>>({
       query: (comment) => ({
         url: "comments",
         method: "POST",
         body: comment,
       }),
-      invalidatesTags: [{ type: "Comments", id: "LIST" }],
+      invalidatesTags: (result, error, arg) => [
+        { type: "Comments", id: "LIST" },
+        { type: "Tasks", id: arg.taskId || "LIST" }
+      ],
     }),
     getAttachments: build.query<Attachment[], { taskId: string }>({
       query: ({ taskId }) => `attachments?taskId=${taskId}`,
@@ -394,6 +472,56 @@ export const api = createApi({
         body: attachment,
       }),
       invalidatesTags: [{ type: "Attachments", id: "LIST" }],
+    }),
+
+    // ── Notifications ──────────────────────────────────────────
+    getNotifications: build.query<NotificationResponse, { page?: number; limit?: number; unreadOnly?: boolean }>({
+      query: (params) => {
+        const searchParams = new URLSearchParams();
+        if (params.page) searchParams.set("page", String(params.page));
+        if (params.limit) searchParams.set("limit", String(params.limit));
+        if (params.unreadOnly) searchParams.set("unreadOnly", "true");
+        return `notifications?${searchParams.toString()}`;
+      },
+      providesTags: (result) =>
+        result
+          ? [
+              ...result.notifications.map(({ id }) => ({ type: "Notifications" as const, id })),
+              { type: "Notifications", id: "LIST" },
+            ]
+          : [{ type: "Notifications", id: "LIST" }],
+    }),
+    getUnreadCount: build.query<{ unreadCount: number }, void>({
+      query: () => `notifications/unread-count`,
+      providesTags: [{ type: "Notifications", id: "UNREAD_COUNT" }],
+    }),
+    markAsRead: build.mutation<{ notification: Notification }, string>({
+      query: (notificationId) => ({
+        url: `notifications/${notificationId}/read`,
+        method: "PATCH",
+      }),
+      invalidatesTags: (result, error, id) => [
+        { type: "Notifications", id },
+        { type: "Notifications", id: "UNREAD_COUNT" },
+      ],
+    }),
+    markAllAsRead: build.mutation<{ updatedCount: number }, void>({
+      query: () => ({
+        url: `notifications/read-all`,
+        method: "PATCH",
+      }),
+      invalidatesTags: ["Notifications"],
+    }),
+    deleteNotification: build.mutation<{ message: string }, string>({
+      query: (notificationId) => ({
+        url: `notifications/${notificationId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: (result, error, id) => [
+        { type: "Notifications", id },
+        { type: "Notifications", id: "LIST" },
+        { type: "Notifications", id: "UNREAD_COUNT" },
+      ],
     }),
   }),
 });
@@ -414,6 +542,9 @@ export const {
   useGetUsersQuery,
   useGetUserByIdQuery,
   useUpdateUserMutation,
+  useGetDevUsersQuery,
+  useCreateDevUserMutation,
+  useUpdateDevUserRoleMutation,
   useGetTeamsQuery,
   useGetTeamByIdQuery,
   useCreateTeamMutation,
@@ -429,4 +560,10 @@ export const {
   useGetMeQuery,
   useCreateOrgMutation,
   useJoinOrgMutation,
+  useGetNotificationsQuery,
+  useGetUnreadCountQuery,
+  useMarkAsReadMutation,
+  useMarkAllAsReadMutation,
+  useDeleteNotificationMutation,
+  useGetPaginatedCommentsQuery,
 } = api;

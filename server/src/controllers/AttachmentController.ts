@@ -8,6 +8,11 @@ export const getAttachments = async (
   const { taskId } = req.query as { [key: string]: string };
   const currentUser = (req as any).user;
 
+  if (!taskId || typeof taskId !== "string") {
+    res.status(400).json({ error: "taskId query parameter is required." });
+    return;
+  }
+
   try {
     const task = await prisma.task.findFirst({
       where: {
@@ -41,6 +46,16 @@ export const createAttachment = async (
 ): Promise<void> => {
   const { fileURL, fileName, taskId } = req.body;
   const currentUser = (req as any).user;
+
+  if (!taskId || typeof taskId !== "string") {
+    res.status(400).json({ error: "taskId is required." });
+    return;
+  }
+
+  if (!fileURL || typeof fileURL !== "string") {
+    res.status(400).json({ error: "fileURL is required." });
+    return;
+  }
 
   try {
     const task = await prisma.task.findFirst({

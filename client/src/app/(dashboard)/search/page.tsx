@@ -96,14 +96,15 @@ function Search() {
                     layoutId={`task-card-${task.id}`}
                     key={task.id}
                     onClick={() => {
-                      const url = new URL(window.location.href);
-                      url.searchParams.set("taskId", task.id.toString());
-                      router.push(url.pathname + url.search, { scroll: false });
+                      router.push(`/tasks/${task.id}`);
                     }}
                     className="flex flex-col gap-2 rounded-xl border border-border bg-card p-4 shadow-sm transition-all hover:bg-secondary/50 hover:shadow-md sm:flex-row sm:items-center sm:justify-between cursor-pointer"
                   >
                     <div>
-                      <h3 className="font-semibold text-foreground">{task.title}</h3>
+                      <h3 className="font-semibold text-foreground">
+                        <span className="text-blue-500 mr-2">{task.displayId || task.id.substring(0,8)}</span>
+                        {task.title}
+                      </h3>
                       <p className="text-sm text-muted-foreground mt-1">
                         Project: {task.project?.name || "Unknown"} • Assignee: {task.assignee?.username || "Unassigned"}
                       </p>

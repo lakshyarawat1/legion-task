@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useGetTaskByIdQuery, useGetMeQuery, useUpdateTaskMutation } from "@/state/api";
+import { useGetTaskByIdQuery, useGetMeQuery, useUpdateTaskMutation, useCreateCommentMutation } from "@/state/api";
 import { format } from "date-fns";
-import { Clock, MessageSquareMore, Check, X, Pencil } from "lucide-react";
+import { Clock, MessageSquareMore, Check, X, Pencil, Send, Maximize2 } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { PriorityBadge, StatusBadge } from "@/app/(components)/Badges/Badges";
 import UserAvatar from "@/app/(components)/UserAvatar/UserAvatar";
 import { Input } from "@/components/ui/input";
@@ -22,12 +24,17 @@ export default function ModalTaskDetail({ taskId, onClose }: Props) {
   );
   const { data: currentUser } = useGetMeQuery();
   const [updateTask, { isLoading: isUpdating }] = useUpdateTaskMutation();
+  const router = useRouter();
 
+  const [isMaximizing, setIsMaximizing] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   
   const [isEditingDesc, setIsEditingDesc] = useState(false);
   const [editDesc, setEditDesc] = useState("");
+
+  const [createComment, { isLoading: isCreatingComment }] = useCreateCommentMutation();
+  const [newCommentText, setNewCommentText] = useState("");
 
   useEffect(() => {
     if (task) {
@@ -38,9 +45,9 @@ export default function ModalTaskDetail({ taskId, onClose }: Props) {
     }
   }, [task]);
 
+  // Permissions Logic
   if (!taskId) return null;
 
-  // Permissions Logic
   const isAuthor = currentUser?.userId === task?.authorUserId;
   const isAssignee = currentUser?.userId === task?.assignedUserId;
   const isPoOrPm = Boolean(
@@ -49,6 +56,19 @@ export default function ModalTaskDetail({ taskId, onClose }: Props) {
     (currentUser.team?.productOwnerUserId === currentUser.userId || currentUser.team?.projectManagerUserId === currentUser.userId)
   );
   const canEdit = isAuthor || isAssignee || isPoOrPm;
+
+  const handleCreateComment = async () => {
+    if (!task || !newCommentText.trim()) return;
+    try {
+      await createComment({
+        taskId: task.id,
+        text: newCommentText.trim(),
+      }).unwrap();
+      setNewCommentText("");
+    } catch (err) {
+      console.error("Failed to create comment", err);
+    }
+  };
 
   const handleSaveTitle = async () => {
     if (!task || !editTitle.trim() || editTitle === task.title) {
@@ -68,13 +88,22 @@ export default function ModalTaskDetail({ taskId, onClose }: Props) {
     setIsEditingDesc(false);
   };
 
+  const handleMaximize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsMaximizing(true);
+    setTimeout(() => {
+      router.push(`/tasks/${taskId}`);
+    }, 300);
+  };
+
   return (
     <>
       {/* Backdrop */}
       <motion.div
         key="backdrop"
         initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
+        animate={isMaximizing ? { opacity: 1, backgroundColor: "hsl(var(--background))" } : { opacity: 1 }}
+        transition={{ duration: 0.3 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
         className="fixed inset-0 z-[60] bg-background/80 backdrop-blur-sm"
@@ -85,6 +114,8 @@ export default function ModalTaskDetail({ taskId, onClose }: Props) {
         <motion.div
           key="modal-content"
           layoutId={`task-card-${taskId}`}
+          animate={isMaximizing ? { scale: 1.05, opacity: 0 } : { scale: 1, opacity: 1 }}
+          transition={{ duration: 0.3, ease: "easeInOut" }}
           className="w-full max-w-4xl max-h-[90vh] rounded-3xl border border-border bg-card shadow-2xl pointer-events-auto relative flex flex-col overflow-hidden"
         >
           <motion.div 
@@ -94,12 +125,22 @@ export default function ModalTaskDetail({ taskId, onClose }: Props) {
             transition={{ duration: 0.2 }}
             className="w-full h-full overflow-y-auto p-6 sm:p-8 flex flex-col gap-8"
           >
-            <button
-              onClick={onClose}
-              className="absolute right-6 top-6 rounded-full p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors z-10"
-            >
-              <X className="h-5 w-5" />
-            </button>
+            <div className="absolute right-6 top-6 flex items-center gap-2 z-10">
+              <button
+                onClick={handleMaximize}
+                className="rounded-full p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                title="Open full page"
+              >
+                <Maximize2 className="h-5 w-5" />
+              </button>
+              <button
+                onClick={onClose}
+                className="rounded-full p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                title="Close modal"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
 
             {isLoading || (!task && !isError) ? (
               <div className="animate-pulse text-muted-foreground flex flex-col gap-4">
@@ -119,8 +160,8 @@ export default function ModalTaskDetail({ taskId, onClose }: Props) {
                 <div className="flex flex-col gap-4 pr-8">
                   <div className="flex items-center gap-3">
                     <PriorityBadge priority={task.priority} />
-                <StatusBadge status={task.status} />
-              </div>
+                    <StatusBadge status={task.status} />
+                  </div>
 
               <div className="group flex flex-col gap-2">
                 {isEditingTitle ? (
@@ -202,12 +243,21 @@ export default function ModalTaskDetail({ taskId, onClose }: Props) {
                     <div className="flex flex-col gap-3">
                       {task.comments.map((comment) => (
                         <div key={comment.id} className="flex gap-3">
-                          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs shrink-0">
+                          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs shrink-0 mt-0.5">
                             {comment.user?.username.charAt(0).toUpperCase()}
                           </div>
-                          <div className="flex-1 bg-background border border-border rounded-2xl rounded-tl-none p-3 text-sm text-foreground">
-                            <div className="font-semibold mb-1 text-xs opacity-70">{comment.user?.username}</div>
-                            {comment.text}
+                          <div className="flex-1 flex flex-col gap-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-sm text-foreground">{comment.user?.username}</span>
+                              {comment.createdAt && (
+                                <span className="text-xs text-muted-foreground">
+                                  {format(new Date(comment.createdAt), "MMM d, h:mm a")}
+                                </span>
+                              )}
+                            </div>
+                            <div className="bg-background border border-border rounded-2xl rounded-tl-none p-3 text-sm text-foreground">
+                              {comment.text}
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -215,6 +265,35 @@ export default function ModalTaskDetail({ taskId, onClose }: Props) {
                   ) : (
                     <p className="text-muted-foreground text-sm italic">No comments yet.</p>
                   )}
+                  
+                  <div className="mt-5 pt-4 border-t border-border/50 flex gap-3">
+                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs shrink-0 mt-1">
+                      {currentUser?.username?.charAt(0).toUpperCase() || "?"}
+                    </div>
+                    <div className="flex-1 flex flex-col gap-2">
+                      <Textarea 
+                        value={newCommentText}
+                        onChange={(e) => setNewCommentText(e.target.value)}
+                        placeholder="Add a comment..."
+                        className="min-h-[80px] resize-none bg-background rounded-xl border-border"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            handleCreateComment();
+                          }
+                        }}
+                      />
+                      <div className="flex justify-end">
+                        <Button 
+                          size="sm" 
+                          onClick={handleCreateComment}
+                          disabled={isCreatingComment || !newCommentText.trim()}
+                        >
+                          <Send className="h-3.5 w-3.5 mr-2" /> Comment
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 

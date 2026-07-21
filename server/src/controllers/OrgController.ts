@@ -51,10 +51,13 @@ export const createOrg = async (req: Request, res: Response): Promise<void> => {
       },
     });
 
-    // Update the user's orgId
+    // Update the user's orgId and reset teamId
     const updatedUser = await prisma.user.update({
       where: { userId: user.userId },
-      data: { orgId: org.id },
+      data: {
+        orgId: org.id,
+        teamId: null,
+      },
       include: { organization: true },
     });
 
@@ -90,10 +93,13 @@ export const joinOrg = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Update the user's orgId
+    // Update the user's orgId and reset teamId
     const updatedUser = await prisma.user.update({
       where: { userId: user.userId },
-      data: { orgId: org.id },
+      data: {
+        orgId: org.id,
+        teamId: null,
+      },
       include: { organization: true },
     });
 

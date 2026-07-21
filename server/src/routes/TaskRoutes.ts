@@ -14,19 +14,21 @@ import {
   updateTaskSchema,
   updateTaskStatusSchema,
 } from "../validation/taskValidation";
+import { requireRole } from "../middleware/rbacMiddleware";
 
 const router = Router();
 
 router.get("/", getTasks);
-router.post("/", validateRequest(createTaskSchema), createTask);
+router.post("/", requireRole(["ADMIN", "PROJECT_MANAGER", "MEMBER"]), validateRequest(createTaskSchema), createTask);
 router.get("/user/:userId", getTasksByUser);
 router.get("/:taskId", getTaskById);
-router.put("/:taskId", validateRequest(updateTaskSchema), updateTask);
+router.put("/:taskId", requireRole(["ADMIN", "PROJECT_MANAGER", "MEMBER"]), validateRequest(updateTaskSchema), updateTask);
 router.patch(
   "/:taskId/status",
+  requireRole(["ADMIN", "PROJECT_MANAGER", "MEMBER"]),
   validateRequest(updateTaskStatusSchema),
   updateTaskStatus
 );
-router.delete("/:taskId", deleteTask);
+router.delete("/:taskId", requireRole(["ADMIN", "PROJECT_MANAGER"]), deleteTask);
 
 export default router;

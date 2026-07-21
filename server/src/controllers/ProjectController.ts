@@ -62,12 +62,49 @@ export const createProject = async (
   res: Response
 ): Promise<void> => {
   const { name, description, startDate, endDate } = req.body;
+  const user = (req as any).user;
+
+  const generatePrefix = (projectName: string): string => {
+    if (!projectName) return "PRJ";
+    const words = projectName.split(/[\s_-]+/);
+    let prefix = words
+      .map((w) => w[0])
+      .join("")
+      .toUpperCase()
+      .replace(/[^A-Z]/g, "");
+
+    if (prefix.length === 0) return "PRJ";
+    if (prefix.length > 5) prefix = prefix.substring(0, 5);
+    return prefix;
+  };
 
   try {
-    const user = (req as any).user;
+    let basePrefix = generatePrefix(name);
+    let finalPrefix = basePrefix;
+    let isUnique = false;
+    let suffix = 1;
+
+    // Handle org-level prefix collisions
+    while (!isUnique) {
+      const existing = await prisma.project.findFirst({
+        where: {
+          orgId: user?.orgId || null,
+          prefix: finalPrefix,
+        },
+      });
+
+      if (!existing) {
+        isUnique = true;
+      } else {
+        suffix++;
+        finalPrefix = `${basePrefix.substring(0, 4)}${suffix}`;
+      }
+    }
+
     const newProject = await prisma.project.create({
       data: {
         name,
+        prefix: finalPrefix,
         description,
         startDate,
         endDate,
@@ -88,7 +125,7 @@ export const updateProject = async (
   res: Response
 ): Promise<void> => {
   const { id } = req.params as { [key: string]: string };
-  const { name, description, startDate, endDate } = req.body;
+  const { name, prefix, description, startDate, endDate } = req.body;
   const currentUser = (req as any).user;
 
   try {
@@ -110,6 +147,7 @@ export const updateProject = async (
       },
       data: {
         name,
+        ...(prefix && { prefix: prefix.toUpperCase() }),
         description,
         startDate,
         endDate,

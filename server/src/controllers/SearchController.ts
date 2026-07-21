@@ -12,7 +12,30 @@ export const search = async (req: Request, res: Response): Promise<void> => {
   }
 
   try {
-    const [tasks, projects, users] = await Promise.all([
+    let tasks: any[] = [];
+    let projects: any[] = [];
+    let users: any[] = [];
+
+    const displayIdMatch = query.match(/^([A-Za-z]+)-(\d+)$/);
+    let exactTask = null;
+
+    if (displayIdMatch) {
+      const [, prefix, numberStr] = displayIdMatch;
+      const taskNumber = parseInt(numberStr, 10);
+
+      exactTask = await prisma.task.findFirst({
+        where: {
+          taskNumber,
+          project: {
+            prefix: { equals: prefix, mode: "insensitive" },
+            orgId,
+          },
+        },
+        include: { project: true, author: true, assignee: true },
+      });
+    }
+
+    const [fuzzyTasks, fuzzyProjects, fuzzyUsers] = await Promise.all([
       prisma.task.findMany({
         where: {
           project: {
@@ -48,6 +71,14 @@ export const search = async (req: Request, res: Response): Promise<void> => {
         },
       }),
     ]);
+
+    tasks = fuzzyTasks;
+    projects = fuzzyProjects;
+    users = fuzzyUsers;
+
+    if (exactTask) {
+      tasks = [exactTask, ...fuzzyTasks.filter(t => t.id !== exactTask?.id)];
+    }
 
     res.json({ tasks, projects, users });
   } catch (err) {

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,26 @@ export default function ProjectPage() {
   const projectId = id as string;
   const [activeTab, setActiveTab] = useState("board");
   const [isNewTaskModalOpen, setIsNewTaskModalOpen] = useState(false);
+
+  // Alt+1..4 to switch project views
+  useEffect(() => {
+    const handleViewShortcut = (e: KeyboardEvent) => {
+      if (!e.altKey) return;
+      const viewMap: Record<string, string> = {
+        "1": "board",
+        "2": "list",
+        "3": "table",
+        "4": "timeline",
+      };
+      if (e.key in viewMap) {
+        e.preventDefault();
+        setActiveTab(viewMap[e.key]);
+      }
+    };
+
+    document.addEventListener("keydown", handleViewShortcut);
+    return () => document.removeEventListener("keydown", handleViewShortcut);
+  }, []);
 
   const { data: project, isLoading, isError, error } = useGetProjectByIdQuery({ id: projectId });
 

@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import prisma from "../prisma";
+import { NotificationService } from "../services/NotificationService";
 
 export const getTeams = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -65,6 +66,27 @@ export const createTeam = async (req: Request, res: Response): Promise<void> => 
   const { teamName, productOwnerUserId, projectManagerUserId } = req.body;
   try {
     const user = (req as any).user;
+
+    if (productOwnerUserId && productOwnerUserId !== "none") {
+      const poUser = await prisma.user.findFirst({
+        where: { userId: productOwnerUserId, orgId: user.orgId },
+      });
+      if (!poUser) {
+        res.status(400).json({ error: "Product Owner user not found in your organization." });
+        return;
+      }
+    }
+
+    if (projectManagerUserId && projectManagerUserId !== "none") {
+      const pmUser = await prisma.user.findFirst({
+        where: { userId: projectManagerUserId, orgId: user.orgId },
+      });
+      if (!pmUser) {
+        res.status(400).json({ error: "Project Manager user not found in your organization." });
+        return;
+      }
+    }
+
     const newTeam = await prisma.team.create({
       data: {
         teamName,
@@ -139,6 +161,26 @@ export const updateTeam = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
+    if (productOwnerUserId && productOwnerUserId !== "none") {
+      const poUser = await prisma.user.findFirst({
+        where: { userId: productOwnerUserId, orgId: currentUser.orgId },
+      });
+      if (!poUser) {
+        res.status(400).json({ error: "Product Owner user not found in your organization." });
+        return;
+      }
+    }
+
+    if (projectManagerUserId && projectManagerUserId !== "none") {
+      const pmUser = await prisma.user.findFirst({
+        where: { userId: projectManagerUserId, orgId: currentUser.orgId },
+      });
+      if (!pmUser) {
+        res.status(400).json({ error: "Project Manager user not found in your organization." });
+        return;
+      }
+    }
+
     const updatedTeam = await prisma.team.update({
       where: { id: teamId },
       data: {
@@ -196,6 +238,19 @@ export const addTeamMember = async (req: Request, res: Response): Promise<void> 
       data: { teamId },
     });
     res.json(updatedUser);
+
+    if (userId !== currentUser.userId) {
+      NotificationService.create({
+        type: "TEAM_ADDED",
+        title: "Added to Team",
+        message: `You were added to **${team.teamName}**`,
+        userId,
+        actorId: currentUser.userId,
+        resourceType: "TEAM",
+        resourceId: team.id,
+        orgId: currentUser.orgId,
+      });
+    }
   } catch (err) {
     res.status(500).json({ error: "Error adding team member.", details: String(err) });
   }
@@ -234,6 +289,19 @@ export const removeTeamMember = async (req: Request, res: Response): Promise<voi
       data: { teamId: null },
     });
     res.json(updatedUser);
+
+    if (userId !== currentUser.userId) {
+      NotificationService.create({
+        type: "TEAM_REMOVED",
+        title: "Removed from Team",
+        message: `You were removed from **${team.teamName}**`,
+        userId,
+        actorId: currentUser.userId,
+        resourceType: "TEAM",
+        resourceId: team.id,
+        orgId: currentUser.orgId,
+      });
+    }
   } catch (err) {
     res.status(500).json({ error: "Error removing team member.", details: String(err) });
   }

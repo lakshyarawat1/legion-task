@@ -85,7 +85,7 @@ const TimelineView = ({ projectId }: { projectId: string }) => {
 
   const ganttTasks: GanttTask[] = [];
 
-  if (project && project.startDate && project.endDate) {
+  if (project) {
     const projectMatchesSearch = !searchQuery || project.name.toLowerCase().includes(searchQuery.toLowerCase());
     
     // If the project matches the search or we have matching tasks, render the hierarchical view
@@ -95,13 +95,29 @@ const TimelineView = ({ projectId }: { projectId: string }) => {
       const progress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
       const projectGanttId = `Project-${project.id}`;
 
+      // Derive dates if project dates are missing
+      let derivedStartDate = new Date();
+      let derivedEndDate = new Date();
+      
+      if (project.startDate) {
+        derivedStartDate = new Date(project.startDate);
+      } else if (validTasks.length > 0) {
+        derivedStartDate = new Date(Math.min(...validTasks.map(t => new Date(t.startDate!).getTime())));
+      }
+      
+      if (project.endDate) {
+        derivedEndDate = new Date(project.endDate);
+      } else if (validTasks.length > 0) {
+        derivedEndDate = new Date(Math.max(...validTasks.map(t => new Date(t.dueDate!).getTime())));
+      }
+
       // Add the Project Task
       ganttTasks.push({
         id: projectGanttId,
         type: "project",
         name: project.name,
-        start: new Date(project.startDate),
-        end: new Date(project.endDate),
+        start: derivedStartDate,
+        end: derivedEndDate,
         progress,
         hideChildren: hiddenProjects[projectGanttId] ?? false,
         isDisabled: true,
@@ -138,28 +154,6 @@ const TimelineView = ({ projectId }: { projectId: string }) => {
         } as any);
       });
     }
-  } else {
-    // Fallback: If no project dates, map tasks flatly
-    filteredTasks.forEach((task) => {
-      const colors = getPriorityColor(task.priority);
-      ganttTasks.push({
-        id: `Task-${task.id}`,
-        type: "task",
-        name: task.title,
-        start: new Date(task.startDate!),
-        end: new Date(task.dueDate!),
-        progress: getProgress(task.status),
-        isDisabled: true,
-        priority: task.priority,
-        status: task.status,
-        styles: {
-          progressColor: colors.bg,
-          progressSelectedColor: colors.sel,
-          backgroundColor: isDark ? "#1d1f21" : "#f3f4f6",
-          backgroundSelectedColor: isDark ? "#2d3135" : "#e5e7eb",
-        }
-      } as any);
-    });
   }
 
   const hasNoValidTasks = validTasks.length === 0;

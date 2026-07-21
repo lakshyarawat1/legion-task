@@ -14,6 +14,8 @@ import searchRoutes from "./routes/SearchRoutes";
 import commentRoutes from "./routes/CommentRoutes";
 import attachmentRoutes from "./routes/AttachmentRoutes";
 import orgRoutes from "./routes/OrgRoutes";
+import devRoutes from "./routes/DevRoutes";
+import notificationRoutes from "./routes/NotificationRoutes";
 import { clerkMiddleware } from "@clerk/express";
 
 const app = express();
@@ -40,11 +42,32 @@ app.use(
 );
 app.use(helmet());
 app.use(helmet.crossOriginResourcePolicy({ policy: "cross-origin" }));
+
+// Redact sensitive query parameters from access logs
+morgan.token("url", (req: any) => {
+  let url = req.originalUrl || req.url || "";
+  if (url.includes("__clerk_db_jwt=")) {
+    url = url.replace(/__clerk_db_jwt=[^&]*/g, "__clerk_db_jwt=[REDACTED]");
+  }
+  return url;
+});
 app.use(morgan("common"));
 
 // Global logging middleware
 app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  let logUrl = req.originalUrl || req.url || "";
+  if (logUrl.includes("__clerk_db_jwt=")) {
+    logUrl = logUrl.replace(/__clerk_db_jwt=[^&]*/g, "__clerk_db_jwt=[REDACTED]");
+  }
+  console.log(`[${new Date().toISOString()}] ${req.method} ${logUrl}`);
+  next();
+});
+
+// Map token from query param to header for EventSource (SSE)
+app.use((req, res, next) => {
+  if (req.query.__clerk_db_jwt) {
+    req.headers.authorization = `Bearer ${req.query.__clerk_db_jwt}`;
+  }
   next();
 });
 
@@ -67,6 +90,11 @@ app.use("/teams", requireAuthMiddleware, requireLocalUser, requireOrg, teamRoute
 app.use("/search", requireAuthMiddleware, requireLocalUser, requireOrg, searchRoutes);
 app.use("/comments", requireAuthMiddleware, requireLocalUser, requireOrg, commentRoutes);
 app.use("/attachments", requireAuthMiddleware, requireLocalUser, requireOrg, attachmentRoutes);
+app.use("/notifications", requireAuthMiddleware, requireLocalUser, requireOrg, notificationRoutes);
+
+if (process.env.NODE_ENV !== "production") {
+  app.use("/dev", devRoutes);
+}
 
 const PORT = process.env.PORT || 3000;
 

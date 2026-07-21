@@ -72,6 +72,15 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
   const { username } = req.body;
   const currentUser = (req as any).user;
 
+  if (
+    currentUser.userId !== userId &&
+    currentUser.role !== "ADMIN" &&
+    currentUser.role !== "PROJECT_MANAGER"
+  ) {
+    res.status(403).json({ error: "Access denied. You can only update your own profile." });
+    return;
+  }
+
   try {
     const user = await prisma.user.findFirst({
       where: {

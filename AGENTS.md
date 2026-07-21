@@ -294,3 +294,41 @@ cd server && pnpm seed
 # Generate Prisma client after schema changes
 cd server && pnpm exec prisma generate
 ```
+
+---
+
+## 13. Antagonistic Tester Agent & Bug Registry
+
+- **Testing Agent Location**: [.agents/skills/antagonistic_tester/SKILL.md](file:///f:/legion-task/.agents/skills/antagonistic_tester/SKILL.md)
+  - This agent is configured to aggressively test for bugs, crashes, input validation weaknesses, and security vulnerabilities.
+- **Bugs Registry**: [bugs/](file:///f:/legion-task/bugs/)
+  - All identified bugs are logged in the `bugs/` directory as markdown files (`BUG-XXX.md`).
+  - Developer agents should check this directory for unresolved issues, fix them, and update the report once fixed.
+
+---
+
+## 14. System Architect Agent & Architectural Blueprints Registry
+
+- **Architect Agent Location**: [.agents/skills/system_architect/SKILL.md](file:///f:/legion-task/.agents/skills/system_architect/SKILL.md)
+  - This agent is configured to design optimized, secure, scalable, and production-ready architectures.
+- **Architecture Registry**: [architecture/](file:///f:/legion-task/architecture/)
+  - All proposed architectural blueprints are logged in the `architecture/` directory as markdown files (`ARCH-XXX.md`).
+  - Developer agents should implement designs from this folder.
+
+---
+
+## 15. Developer Agent
+
+- **Developer Agent Location**: [.agents/skills/developer/SKILL.md](file:///f:/legion-task/.agents/skills/developer/SKILL.md)
+  - This agent is configured to read proposed blueprints from the `architecture/` directory and implement them with maximum accuracy across the monorepo, updating the blueprint's status once completed.
+
+---
+
+## 16. Bug Fixer Agent
+
+- **Bug Fixer Agent Location**: [.agents/skills/bug_fixer/SKILL.md](file:///f:/legion-task/.agents/skills/bug_fixer/SKILL.md)
+  - This agent is configured to look for active bug reports in the `bugs/` directory, write fixes, and perform regression and unit/integration testing to ensure everything is resolved and functional.
+
+
+
+

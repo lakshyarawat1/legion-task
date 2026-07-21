@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import prisma from "../prisma";
+import { NotificationService } from "../services/NotificationService";
 
 export const getTasks = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -25,12 +26,20 @@ export const getTasks = async (req: Request, res: Response): Promise<void> => {
       include: {
         author: true,
         assignee: true,
-        comments: true,
+        comments: {
+          orderBy: {
+            createdAt: "asc",
+          },
+        },
         attachments: true,
         project: true,
       },
     });
-    res.json(tasks);
+    const tasksWithDisplayId = tasks.map(task => ({
+      ...task,
+      displayId: `${task.project?.prefix}-${task.taskNumber}`
+    }));
+    res.json(tasksWithDisplayId);
   } catch (err) {
     res
       .status(500)
@@ -55,6 +64,9 @@ export const getTaskById = async (
         author: true,
         assignee: true,
         comments: {
+          orderBy: {
+            createdAt: "asc",
+          },
           include: {
             user: true,
           },
@@ -78,7 +90,12 @@ export const getTaskById = async (
       return;
     }
 
-    res.json(task);
+    const taskWithDisplayId = {
+      ...task,
+      displayId: `${task.project?.prefix}-${task.taskNumber}`
+    };
+
+    res.json(taskWithDisplayId);
   } catch (err) {
     res
       .status(500)
@@ -118,22 +135,46 @@ export const createTask = async (
     }
 
     const authorUserId = currentUser.userId;
-    const newTask = await prisma.task.create({
-      data: {
-        title,
-        description,
-        status,
-        priority,
-        tags,
-        startDate,
-        dueDate,
-        points,
-        projectId,
-        authorUserId,
-        assignedUserId,
-      },
+    
+    const newTask = await prisma.$transaction(async (tx) => {
+      const maxTaskNumber = await tx.task.aggregate({
+        where: { projectId },
+        _max: { taskNumber: true },
+      });
+      const nextNumber = (maxTaskNumber._max.taskNumber || 0) + 1;
+
+      return tx.task.create({
+        data: {
+          title,
+          description,
+          status,
+          priority,
+          tags,
+          startDate,
+          dueDate,
+          points,
+          projectId,
+          authorUserId,
+          assignedUserId,
+          taskNumber: nextNumber,
+        },
+      });
     });
+    
     res.status(201).json(newTask);
+
+    if (assignedUserId && assignedUserId !== currentUser.userId) {
+      NotificationService.create({
+        type: "TASK_ASSIGNED",
+        title: "New Task Assigned",
+        message: `You were assigned to **${title}**`,
+        userId: assignedUserId,
+        actorId: currentUser.userId,
+        resourceType: "TASK",
+        resourceId: newTask.id,
+        orgId: currentUser.orgId,
+      });
+    }
   } catch (err) {
     res
       .status(500)
@@ -189,6 +230,19 @@ export const updateTask = async (
       },
     });
     res.json(updatedTask);
+
+    if (assignedUserId && assignedUserId !== task.assignedUserId && assignedUserId !== currentUser.userId) {
+      NotificationService.create({
+        type: "TASK_ASSIGNED",
+        title: "New Task Assigned",
+        message: `You were assigned to **${title || task.title}**`,
+        userId: assignedUserId,
+        actorId: currentUser.userId,
+        resourceType: "TASK",
+        resourceId: updatedTask.id,
+        orgId: currentUser.orgId,
+      });
+    }
   } catch (err) {
     res
       .status(500)
@@ -226,6 +280,23 @@ export const updateTaskStatus = async (
       },
     });
     res.json(updatedTask);
+
+    const notifyUsers = new Set<string>();
+    if (task.authorUserId !== currentUser.userId) notifyUsers.add(task.authorUserId);
+    if (task.assignedUserId && task.assignedUserId !== currentUser.userId) notifyUsers.add(task.assignedUserId);
+
+    notifyUsers.forEach((userId) => {
+      NotificationService.create({
+        type: "TASK_STATUS_CHANGED",
+        title: "Task Status Updated",
+        message: `**${task.title}** moved to *${status}*`,
+        userId,
+        actorId: currentUser.userId,
+        resourceType: "TASK",
+        resourceId: updatedTask.id,
+        orgId: currentUser.orgId,
+      });
+    });
   } catch (err) {
     res.status(500).json({ error: "Error updating task status." });
   }
@@ -268,6 +339,23 @@ export const deleteTask = async (
       }),
     ]);
     res.status(204).send();
+
+    const notifyUsers = new Set<string>();
+    if (task.authorUserId !== currentUser.userId) notifyUsers.add(task.authorUserId);
+    if (task.assignedUserId && task.assignedUserId !== currentUser.userId) notifyUsers.add(task.assignedUserId);
+
+    notifyUsers.forEach((userId) => {
+      NotificationService.create({
+        type: "TASK_DELETED",
+        title: "Task Deleted",
+        message: `**${task.title}** was deleted`,
+        userId,
+        actorId: currentUser.userId,
+        resourceType: "TASK",
+        resourceId: undefined,
+        orgId: currentUser.orgId,
+      });
+    });
   } catch (err) {
     res
       .status(500)
@@ -311,7 +399,11 @@ export const getTasksByUser = async (
         attachments: true,
       },
     });
-    res.json(tasks);
+    const tasksWithDisplayId = tasks.map(task => ({
+      ...task,
+      displayId: `${task.project?.prefix}-${task.taskNumber}`
+    }));
+    res.json(tasksWithDisplayId);
   } catch (err) {
     res
       .status(500)

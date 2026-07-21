@@ -1,15 +1,27 @@
 "use client";
 
 import React, { useState } from "react";
-import { useGetUsersQuery } from "@/state/api";
+import { useGetUsersQuery, useGetTeamsQuery } from "@/state/api";
 import { Users as UsersIcon, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import EmptyState from "@/app/(components)/EmptyState/EmptyState";
 import { cn, formatUsername, getAvatarColor } from "@/lib/utils";
 
 export default function UsersPage() {
-  const { data: users, isLoading } = useGetUsersQuery();
+  const { data: users, isLoading: usersLoading } = useGetUsersQuery();
+  const { data: teams, isLoading: teamsLoading } = useGetTeamsQuery();
   const [searchTerm, setSearchTerm] = useState("");
+
+  const isLoading = usersLoading || teamsLoading;
+
+  const getUserTeams = (userId: string) => {
+    if (!teams) return [];
+    return teams.filter(team => 
+      team.productOwnerUserId === userId || 
+      team.projectManagerUserId === userId || 
+      team.user?.some(u => u.userId === userId)
+    );
+  };
 
   const filteredUsers = users?.filter((user) =>
     user.username.toLowerCase().includes(searchTerm.toLowerCase())
@@ -86,10 +98,14 @@ export default function UsersPage() {
                       {formatUsername(user.username)}
                     </td>
                     <td className="px-6 py-3 whitespace-nowrap text-muted-foreground">
-                      {user.team?.teamName ? (
-                        <span className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium">
-                          {user.team.teamName}
-                        </span>
+                      {getUserTeams(user.userId).length > 0 ? (
+                        <div className="flex gap-2 flex-wrap">
+                          {getUserTeams(user.userId).map(team => (
+                            <span key={team.id} className="inline-flex items-center rounded-full bg-secondary px-2.5 py-0.5 text-xs font-medium">
+                              {team.teamName}
+                            </span>
+                          ))}
+                        </div>
                       ) : (
                         <span className="text-muted-foreground/60 italic">No Team</span>
                       )}

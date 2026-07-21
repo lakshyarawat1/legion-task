@@ -29,9 +29,18 @@ import {
   CalendarDays,
   ListTodo,
   LogOut,
+  Terminal,
+  ShieldAlert,
+  Users,
 } from "lucide-react";
 import { cn, formatUsername, getAvatarColor } from "@/lib/utils";
-import { useGetMeQuery, useUpdateUserMutation } from "@/state/api";
+import { 
+  useGetMeQuery, 
+  useUpdateUserMutation,
+  useGetDevUsersQuery,
+  useCreateDevUserMutation,
+  useUpdateDevUserRoleMutation
+} from "@/state/api";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -132,6 +141,38 @@ export default function SettingsPage() {
   const { data: currentUser } = useGetMeQuery();
   const [updateUser, { isLoading: isUpdating }] = useUpdateUserMutation();
   const { signOut } = useClerk();
+  
+  const isDev = process.env.NODE_ENV !== "production";
+  const { data: devUsers, refetch: refetchDevUsers } = useGetDevUsersQuery(
+    { orgId: currentUser?.orgId },
+    { skip: !isDev || !currentUser?.orgId }
+  );
+  const [createDevUser, { isLoading: isCreatingDev }] = useCreateDevUserMutation();
+  const [updateDevRole] = useUpdateDevUserRoleMutation();
+  const [newDevUsername, setNewDevUsername] = useState("");
+  const [newDevRole, setNewDevRole] = useState("MEMBER");
+  
+  const handleCreateDevUser = async () => {
+    if (!newDevUsername.trim()) return;
+    try {
+      await createDevUser({
+        username: newDevUsername,
+        role: newDevRole,
+        orgId: currentUser?.orgId,
+        teamId: currentUser?.teamId
+      }).unwrap();
+      setNewDevUsername("");
+      refetchDevUsers();
+    } catch (err: any) {
+      alert(`Error creating user: ${err?.data?.error || "Unknown"}`);
+    }
+  };
+
+  const handleSwitchSession = (clerkUserId: string) => {
+    // In our mock auth system, this cookie determines the session
+    document.cookie = `mock_user_id=${clerkUserId}; path=/; max-age=31536000`;
+    window.location.href = "/dashboard";
+  };
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState("general");
 
@@ -227,6 +268,11 @@ export default function SettingsPage() {
           <TabsTrigger value="about" className="gap-1.5">
             <Info className="h-4 w-4" /> About
           </TabsTrigger>
+          {isDev && (
+            <TabsTrigger value="dev" className="gap-1.5 text-orange-500 data-[state=active]:text-orange-500 data-[state=active]:bg-orange-500/10">
+              <Terminal className="h-4 w-4" /> Dev Console
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {/* ─── General Tab ─────────────────────────────────────── */}
@@ -538,6 +584,15 @@ export default function SettingsPage() {
         {/* ─── Keyboard Shortcuts Tab ──────────────────────────── */}
         <TabsContent value="shortcuts">
           <div className="flex flex-col gap-6">
+            <div className="flex items-center gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
+              <Keyboard className="h-5 w-5 text-primary shrink-0" />
+              <p className="text-sm text-muted-foreground">
+                All shortcuts below are active globally. Press{" "}
+                <kbd className="inline-flex h-5 items-center rounded border border-border bg-secondary px-1.5 text-[10px] font-mono font-medium text-muted-foreground shadow-sm">?</kbd>
+                {" "}anywhere to see this reference.
+              </p>
+            </div>
+
             <SettingsSection title="Navigation" description="Quickly jump between views.">
               <SettingsRow title="Go to Dashboard"><KbdBadge keys={["G", "D"]} /></SettingsRow>
               <SettingsRow title="Go to Projects"><KbdBadge keys={["G", "P"]} /></SettingsRow>
@@ -550,6 +605,7 @@ export default function SettingsPage() {
               <SettingsRow title="Create New Task"><KbdBadge keys={["C"]} /></SettingsRow>
               <SettingsRow title="Toggle Dark/Light Mode"><KbdBadge keys={["Ctrl", "Shift", "L"]} /></SettingsRow>
               <SettingsRow title="Toggle Sidebar"><KbdBadge keys={["["]} /></SettingsRow>
+              <SettingsRow title="Show Shortcut Help"><KbdBadge keys={["?"]} /></SettingsRow>
               <SettingsRow title="Close Modal / Cancel"><KbdBadge keys={["Esc"]} /></SettingsRow>
               <SettingsRow title="Save / Submit"><KbdBadge keys={["Ctrl", "Enter"]} /></SettingsRow>
             </SettingsSection>
@@ -628,6 +684,143 @@ export default function SettingsPage() {
             </SettingsSection>
           </div>
         </TabsContent>
+
+        {/* ─── Dev Console Tab ───────────────────────────────────── */}
+        {isDev && (
+          <TabsContent value="dev">
+            <div className="flex flex-col gap-6">
+              <div className="rounded-xl border border-orange-500/20 bg-orange-500/5 p-4 flex items-start gap-3">
+                <ShieldAlert className="h-5 w-5 text-orange-500 shrink-0 mt-0.5" />
+                <div>
+                  <h3 className="text-sm font-semibold text-orange-600 dark:text-orange-500">Developer Testing Area</h3>
+                  <p className="text-xs text-orange-600/80 dark:text-orange-500/80 mt-1">
+                    This section is only visible in development environments. You can create mock users to test RBAC and switch your active session dynamically.
+                  </p>
+                </div>
+              </div>
+
+              <SettingsSection title="Create Test User" description="Generate a new user in the current organization.">
+                <div className="flex items-end gap-4 py-4">
+                  <div className="flex flex-col gap-1.5 flex-1">
+                    <label className="text-xs font-medium text-muted-foreground">Username</label>
+                    <Input 
+                      value={newDevUsername} 
+                      onChange={(e) => setNewDevUsername(e.target.value)} 
+                      placeholder="e.g. test_admin"
+                      className="h-9"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5 w-48">
+                    <label className="text-xs font-medium text-muted-foreground">Role</label>
+                    <Select value={newDevRole} onValueChange={(val) => setNewDevRole(val || "MEMBER")}>
+                      <SelectTrigger className="h-9">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ADMIN">Admin</SelectItem>
+                        <SelectItem value="PROJECT_MANAGER">Project Manager</SelectItem>
+                        <SelectItem value="PRODUCT_OWNER">Product Owner</SelectItem>
+                        <SelectItem value="MEMBER">Member</SelectItem>
+                        <SelectItem value="GUEST">Guest</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button 
+                    onClick={handleCreateDevUser} 
+                    disabled={!newDevUsername.trim() || isCreatingDev}
+                    className="h-9"
+                  >
+                    Create User
+                  </Button>
+                </div>
+              </SettingsSection>
+
+              <SettingsSection title="Organization Users" description="Manage roles and switch sessions.">
+                <div className="py-2">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left">
+                      <thead className="text-xs text-muted-foreground bg-secondary/50 uppercase">
+                        <tr>
+                          <th className="px-4 py-3 rounded-tl-lg">User</th>
+                          <th className="px-4 py-3">Role</th>
+                          <th className="px-4 py-3">ID</th>
+                          <th className="px-4 py-3 rounded-tr-lg text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border/50">
+                        {devUsers?.map((u: any) => (
+                          <tr key={u.userId} className="hover:bg-secondary/30 transition-colors">
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-3">
+                                <div className={cn("h-8 w-8 rounded-full flex items-center justify-center text-xs font-bold text-white shadow-sm", getAvatarColor(u.username))}>
+                                  {formatUsername(u.username).charAt(0).toUpperCase()}
+                                </div>
+                                <div>
+                                  <div className="font-medium text-foreground flex items-center gap-2">
+                                    {formatUsername(u.username)}
+                                    {u.userId === currentUser?.userId && (
+                                      <span className="text-[10px] bg-primary/20 text-primary px-1.5 py-0.5 rounded font-semibold">YOU</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <Select 
+                                value={u.role || "MEMBER"} 
+                                onValueChange={async (val) => {
+                                  try {
+                                    await updateDevRole({ userId: u.userId, role: val }).unwrap();
+                                    refetchDevUsers();
+                                  } catch (e) {
+                                    console.error(e);
+                                  }
+                                }}
+                              >
+                                <SelectTrigger className="h-8 w-36 text-xs">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="ADMIN">Admin</SelectItem>
+                                  <SelectItem value="PROJECT_MANAGER">Project Manager</SelectItem>
+                                  <SelectItem value="PRODUCT_OWNER">Product Owner</SelectItem>
+                                  <SelectItem value="MEMBER">Member</SelectItem>
+                                  <SelectItem value="GUEST">Guest</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="font-mono text-xs text-muted-foreground">{u.userId.substring(0, 8)}...</span>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="h-8 text-xs gap-1.5 hover:border-orange-500 hover:text-orange-500 transition-colors"
+                                onClick={() => handleSwitchSession(u.clerkUserId)}
+                                disabled={u.userId === currentUser?.userId}
+                              >
+                                <Users className="h-3 w-3" />
+                                {u.userId === currentUser?.userId ? "Active" : "Switch Session"}
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                        {(!devUsers || devUsers.length === 0) && (
+                          <tr>
+                            <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">
+                              No users found in this organization.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </SettingsSection>
+            </div>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );
